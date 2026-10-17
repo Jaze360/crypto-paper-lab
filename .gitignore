@@ -28,3 +28,8 @@ build/
 Thumbs.db
 .idea/
 .vscode/
+
+.installed-commit
+*.update-tmp
+lab-data/
+*.dpapi

@@ -74,33 +74,30 @@ class PaperEngine:
         for _ in range(max(0,int(steps))):
             if self.idx>=self.end:break
             i=self.idx; row=self.d.iloc[i]; stamp=row.time.isoformat();day=str(row.time.date())
-            # 1. Evaluate existing position using only prior candle signal and current candle open.
+            # Decisions at the candle OPEN can only use information available then.
             if self.current_day != day:
                 self.current_day=day;self.start_day_equity=self.equity(float(row.open))
             _,should_exit=signal(self.d,i-1,self.strategy)
             if self.position and should_exit:
                 self._close(stamp,float(row.open),"Strategie exit vorige candle")
-            # 2. Process existing stop or target using current candle OHLC; uncertain both => stop-first.
+            # Apply gaps at open before sizing another position.
             if self.position:
                 p=self.position
                 if row.open<=p.stop:self._close(stamp,float(row.open),"Gap onder stop")
                 elif row.open>=p.target:self._close(stamp,float(row.open),"Gap boven target")
-                elif row.low<=p.stop:self._close(stamp,p.stop,"Stop-loss")
-                elif row.high>=p.target:self._close(stamp,p.target,"Take-profit")
-            # 3. Update kill switches *before* deciding to open a new position.
             eq=self.equity(float(row.open));self.peak=max(self.peak,eq)
-            self.max_dd=max(self.max_dd, (self.peak-eq)/self.peak)
+            self.max_dd=max(self.max_dd,(self.peak-eq)/self.peak)
             if self.max_dd>=MAX_DRAWDOWN:self.locked=True
             daily_block=(eq < self.start_day_equity*(1-MAX_DAILY_LOSS))
             should_enter,_=signal(self.d,i-1,self.strategy)
             if not self.position and should_enter and not self.locked and not daily_block:
-                prev_atr=float(self.d.iloc[i-1].atr)
-                self._entry(i,stamp,float(row.open),prev_atr)
-                # Conservative same-bar stop if bar traverses both entry and stop.
-                if self.position and row.low<=self.position.stop:
-                    self._close(stamp,self.position.stop,"Stop op instapcandle")
-                elif self.position and row.high>=self.position.target:
-                    self._close(stamp,self.position.target,"Target op instapcandle")
+                self._entry(i,stamp,float(row.open),float(self.d.iloc[i-1].atr))
+            # Only now inspect intrabar highs/lows. Never re-enter at an earlier open
+            # after a stop/target later in that same candle.
+            if self.position:
+                p=self.position
+                if row.low<=p.stop:self._close(stamp,p.stop,"Stop-loss")
+                elif row.high>=p.target:self._close(stamp,p.target,"Take-profit")
             eq=self.equity(float(row.close));self.peak=max(self.peak,eq)
             self.max_dd=max(self.max_dd,(self.peak-eq)/self.peak)
             if self.max_dd>=MAX_DRAWDOWN:self.locked=True
@@ -154,3 +151,4 @@ def run_backtest(candles, strategy="ema",capital=10000,fee=.001,slip=.0005, spli
     warnings.append("Train/test = geen optimalisatie of bewijs van winstgevendheid; historische resultaten zijn indicatief.")
     warnings.append("OHLC-volgorde intrabar is onbekend; bij stop én target wordt conservatief de stop genomen.")
     return {"train":train,"test":test,"split_index":cut,"total_candles":n,"warnings":warnings}
+

@@ -1,105 +1,120 @@
-# Crypto Paper Lab — v0.1
+# Crypto Paper Lab — v0.2
 
-**Nederlandstalige, lokale crypto trading-onderzoeksomgeving. 100% paper trading.** Geen beurs-, wallet- of brokerkoppelingen, geen echte orders, geen shorts of hefboom.
+Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders, exchange-accountkoppeling, shorts of hefboom.
 
-## Functionaliteit
+## Nieuw in v0.2
 
-- Drie deterministische strategieën uit de principes van de tradingcursus: **EMA 8/21**, **RSI(14) mean reversion**, **20-bar breakout + volume**.
-- Reproduceerbare **synthetische demonstratiedata** om de code en de interface zonder API-key te testen. Dit zijn GEEN historische marktdata.
-- **Backtests** met vaste, niet-geoptimaliseerde parameters; 70% ontwikkeling / 30% onaangeroerde testperiode, met reset van fictief kapitaal tussen de segmenten. De indicatoren gebruiken uitsluitend informatie uit hun verleden.
-- Long-only, maximaal **0,25% gepland verlies per trade**, maximaal 25% kapitaal per positie, blokkade op nieuwe entries na 1% dagverlies of 10% piek-tot-dal drawdown. Een gap kan *meer* verlies veroorzaken dan 0,25%.
-- Inbegrepen transactiekosten en slippage bij instap én uitstap; conservatieve stop-first aanname als stop en target binnen dezelfde OHLC-candle geraakt worden.
-- Interactieve **historische candle-replay**, statistieken, winrate, profit factor, expectancy in R en CSV-export van trades.
-- **CoinGecko API-adapter** met Demo- en Pro-authenticatie via omgevingsvariabelen, foutafhandeling voor 429/rate limiting, timeout en caching.
+- Instellingen, CSV-datasets, backtests, vergelijkingen en replays worden lokaal bewaard in SQLite.
+- Een replay hervatten na herstart gebruikt dezelfde opgeslagen candles en voortgang.
+- CoinGecko-sleutel optioneel lokaal opslaan met Windows DPAPI; de sleutel verschijnt nooit in status- of resultatenresponses.
+- Private GitHub-updater: controleren, klaarzetten, afsluiten en bij volgende start installeren. Eerst een back-up van de vervangen bronbestanden.
+- 12 USD-markten; publieke Kraken OHLCV zonder API-sleutel naast CoinGecko.
+- Historische perioden van 7 tot 365 dagen; instelbaar Kraken-interval van 1 uur, 4 uur of 1 dag.
+- Eigen OHLCV-CSV importeren voor langere datasets.
+- Alle drie vaste strategieën vergelijken: 70/30-split, drie chronologische testvensters, dubbele kosten/slippage en kopen-en-vasthouden.
+- Correctie van candle-uitvoering: na een intrabar stop wordt nooit achteraf op de eerdere candle-open opnieuw ingestapt.
 
 ## Starten op Windows
 
-Gebruik voor v0.1 **Python 3.13 (Windows x64, standaard CPython)**. Python 3.15 wordt niet ondersteund door deze dependencyset. Open PowerShell in deze map. Met Python Install Manager kun je Python 3.13 installeren via `py install 3.13`; anders via https://www.python.org/downloads/windows/.
+Gebruik **standaard Python 3.13 x64**. De dependencyset ondersteunt Python 3.15 niet.
+
+1. Installeer zo nodig Python 3.13: `py install 3.13` (Python Install Manager), of via https://www.python.org/downloads/windows/.
+2. Pak alle bestanden uit en dubbelklik op **START_WINDOWS.bat**.
+3. Laat het servervenster open. Het dashboard opent op http://127.0.0.1:8501.
+
+Het startscript maakt indien nodig `.venv-313`, installeert ontbrekende pakketten met kant-en-klare wheels en stopt bij installatiefouten. Installeren/herstellen van dependencies vereist internet. Start steeds via het startscript om klaargezette updates toe te passen.
+
+### Eenmalig overstappen vanuit v0.1
+
+De oude versie heeft nog geen updater. Download eenmaal de nieuwe ZIP via **Code > Download ZIP** op de private repository terwijl je bent ingelogd.
+
+1. Exporteer gewenste v0.1-journals naar CSV: die oude resultaten staan alleen in het geheugen.
+2. Sluit het draaiende servervenster.
+3. Pak de ZIP uit. Kopieer de inhoud van `crypto-paper-lab-main` naar je bestaande programmamap en vervang bronbestanden. Behoud `.venv-313` en persoonlijke bestanden.
+4. Start de nieuwe **START_WINDOWS.bat**.
+5. Bewaar onderzoeksinstellingen met **Instellingen bewaren**. Nieuwe resultaten worden automatisch opgeslagen.
+
+Een API-sleutel uit een oud PowerShell-venster is alleen beschikbaar als je vanuit diezelfde omgeving start. Je kunt hem in het nieuwe dashboard opnieuw invoeren en lokaal versleuteld bewaren. Je hoeft de sleutel nooit in GitHub of deze chat te zetten.
+
+## Updates vanuit het dashboard
+
+Je ChatGPT-GitHub-plugin is niet automatisch beschikbaar voor een los Windows-programma. De updater gebruikt daarom de officiële **GitHub CLI** en jouw bestaande GitHub-account, zonder token in de broncode.
+
+Eenmalige inrichting:
 
 ```powershell
-py -3.13 -m venv .venv-313
-.\.venv-313\Scripts\python.exe -m pip install --upgrade pip
-.\.venv-313\Scripts\python.exe -m pip install --only-binary=:all: -r requirements.txt
-.\.venv-313\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8501
+winget install --id GitHub.cli -e
 ```
 
-Open **http://127.0.0.1:8501**.
+Open daarna een nieuw venster en voer `gh auth login --hostname github.com --web --git-protocol https` uit. Kies het account met toegang tot **Jaze360/crypto-paper-lab**. Je kunt ook **UPDATE_SETUP_WINDOWS.bat** openen nadat GitHub CLI is geïnstalleerd. Authenticeer alleen op GitHub; voer geen token in het dashboard in.
 
-**Makkelijkste optie op Windows:** dubbelklik op `START_WINDOWS.bat`. Het script gebruikt een aparte Python 3.13-omgeving (`.venv-313`), controleert bij elke start de dependencies en opent daarna automatisch je lokale dashboard. Laat het zwarte venster open zolang je de app gebruikt.
+Daarna:
 
-### Installatiefout bij pandas / ontbrekende uvicorn
+1. Klik **Controleren op updates**.
+2. Klik **Update klaarzetten**. De updater downloadt exact de gecontroleerde commit.
+3. Sluit het servervenster en dubbelklik opnieuw op **START_WINDOWS.bat**.
+4. De bronbestanden worden eerst geback-upt en daarna vervangen; instellingen en resultaten blijven buiten de programmamap.
 
-Als pandas om Visual Studio of `vswhere.exe` vraagt, probeert pip uit broncode te bouwen. Gebruik bovenstaande Python 3.13-instructies met `--only-binary=:all:`. Een oude `.venv` met Python 3.15 mag blijven staan: de nieuwe omgeving heet `.venv-313`. De fout `No module named uvicorn` is een gevolg van de afgebroken installatie. Installeer alle requirements succesvol voordat je de app start.
+Een nieuw gedownloade ZIP heeft nog geen geregistreerde commit. De eerste controle kan daarom dezelfde versie als update aanbieden. Na één toepassing kent de updater de geïnstalleerde commit.
 
-### macOS / Linux
+De updater accepteert uitsluitend bronbestanden uit de vaste repository, controleert paden, bestandstypen, omvang en het paper-only-versiemanifest en bewaart de downloadchecksum. Hij weigert geheime bestanden, binaire programma's, symlinks en padtraversal. Updates zijn niet onafhankelijk ondertekend: ze vertrouwen op jouw GitHub-repository en toegang. Pas updates alleen toe met de app afgesloten.
 
-Gebruik ook hier Python 3.13 (`python3.13` in plaats van `python3` hieronder).
+Bij een schrijffout of onderbroken bestandstransactie wordt de vorige code hersteld. Een functionele fout of dependency-installatiefout na een geslaagde vervanging vraagt zo nodig handmatig terugzetten van de bronbestanden uit de back-upmap. Databasewijzigingen in v0.2 zijn alleen toevoegingen.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m uvicorn app:app --host 127.0.0.1 --port 8501
-```
+## Bewaarlocatie en sleutel
 
-## CoinGecko API koppelen (later)
+Standaard: **%LOCALAPPDATA%\\CryptoPaperLab**.
 
-1. Gebruik alleen een **read-only CoinGecko-data-API-key**. Een CoinGecko-key is geen exchangesleutel en heeft geen koop/verkooprechten.
-2. Kies in PowerShell (alleen geldig voor dit PowerShell-venster):
+- `lab.sqlite3`: instellingen, resultaten, CSV-datasets en tijdelijke marktdata-cache.
+- `coingecko.dpapi`: optioneel versleutelde CoinGecko-sleutel, gebonden aan je Windows-account.
+- `backups/`: broncode van vóór updates.
+- `pending-update.json` en `update.zip`: een klaargezette update.
 
-```powershell
-$env:COINGECKO_PLAN = "demo"
-$env:COINGECKO_API_KEY = "JOUW_SLEUTEL"
-python -m uvicorn app:app --host 127.0.0.1 --port 8501
-```
+Sluit de app voordat je deze map kopieert als eigen back-up. Een versleutelde sleutel is niet zomaar overdraagbaar naar een andere Windows-account. De opgeslagen sleutel heeft voorrang op een omgevingsvariabele. Zonder opgeslagen sleutel gebruikt de app `COINGECKO_API_KEY`; het plan komt uit `COINGECKO_PLAN` of de bewaarde instellingen.
 
-3. Selecteer **CoinGecko API** in de interface. De backend gebruikt `x-cg-demo-api-key` met `api.coingecko.com` of `x-cg-pro-api-key` met `pro-api.coingecko.com`. Stuur de key **niet via de browser** en commit hem nooit naar Git. Een `.env.example` is alleen een sjabloon; de app laadt zelf geen `.env`-bestand (gebruik systeemomgevingsvariabelen of een environment loader).
+Alleen de expliciete actie **Instellingen bewaren** bewaart je onderzoeksselecties. Backtests, vergelijkingen en replays bewaren hun resultaten automatisch. **Opgeslagen onderzoeken** opent eerdere resultaten of hervat een replay. Exports volgen het geopende resultaat; zonder selectie het nieuwste resultaat van dat type.
 
-### Belangrijke CoinGecko-datarestricties
+Geavanceerd/testen: `PAPER_LAB_DATA_DIR` wijzigt de bewaarlocatie. Gebruik één serverproces per bewaarlocatie. De app luistert standaard alleen lokaal en weigert schrijfacties afkomstig van andere websites.
 
-- `/coins/{id}/ohlc` geeft **OHLC**, geen exacte handelsvolumes per candle. De **breakout + volume**-strategie blokkeert daarom expliciet met CoinGecko OHLC. Een apart bronbestand met echte, op dezelfde candles afgestemde OHLCV is hiervoor nodig.
-- De CoinGecko Demo-granulariteit is automatisch en hangt af van het aantal opgevraagde dagen. De app beperkt de keuze voorlopig tot 7/14/30 dagen; met weinig testcandles kunnen indicatoren en betrouwbaarheidsanalyses ontoereikend zijn.
-- CoinGecko aggregeert koersdata uit meerdere bronnen; een gesimuleerde uitvoering op geaggregeerde OHLC kan geen echte orderboekuitvoering op een specifieke beurs representeren.
-- Voor historisch verder teruggaande of fijnere data kan een ander CoinGecko-abonnement of een extra databron nodig zijn.
-- De API staat voor deze MVP nog niet onder een **echte autonome forward scheduler**. Historische replay is géén live forward paper trading.
+## Gegevensbronnen en echte grenzen
 
-Officiële docs: https://docs.coingecko.com/reference/coins-id-ohlc en https://docs.coingecko.com/reference/coins-id-market-chart.
+| Bron | Coins / periode | Volume en grenzen |
+|---|---|---|
+| Demo | BTC, ETH, SOL; 360 synthetische 4-uurscandles | Verzonnen OHLCV, alleen om de werking te testen |
+| CoinGecko | 12 geselecteerde coin-ID's; 7/14/30/90/180/365 dagen | OHLC zonder candlevolume; volume-breakout wordt geblokkeerd. Beschikbaarheid hangt van je abonnement af; langere periodes gebruiken grovere candles |
+| Kraken publiek | BTC, ETH, SOL, XRP, ADA, DOGE, AVAX, LINK, DOT, LTC, BCH, UNI, alle in USD | Echt candlevolume, maximaal 719 gesloten candles. De actuele onvoltooide candle wordt verwijderd |
+| Eigen CSV | Dezelfde coinselector; maximaal 50.000 rijen / 8 MB | Vaste intervallen, echte door jou aangeleverde OHLCV. USD-prijzen en bronkwaliteit moet je zelf controleren |
+
+Kraken levert ongeveer maximaal 30 dagen op 1 uur, 120 dagen op 4 uur of 719 dagen op 1 dag; de periodekeuze in deze versie gaat tot 365 dagen. De grafiek toont steeds de **feitelijk ontvangen** periode. Nieuwe of ontbrekende markten kunnen minder data opleveren of een duidelijke fout geven. Geen stilzwijgende terugval op demodata.
+
+CSV-kolommen: `time,open,high,low,close,volume`. Tijd is candle-start in UTC (ISO-8601); candles moeten zonder gaten aansluiten. Ontbrekende tijdzone wordt als UTC behandeld. De laatste candle wordt alleen meegenomen als het volledige interval voorbij is. Geen fictief volume toevoegen om de volumestrategie te kunnen gebruiken.
+
+Officiële broninformatie:
+- CoinGecko: https://docs.coingecko.com/reference/coins-id-ohlc
+- Kraken: https://docs.kraken.com/api/docs/rest-api/get-ohlc-data
+- GitHub CLI: https://cli.github.com/manual/gh_auth_login
+
+## Strategietests lezen
+
+De vaste strategieën blijven **EMA 8/21**, **RSI(14) herstel** en **20-bar breakout + volume**. Meer strategieën of parameters leveren op zichzelf geen beter handelsresultaat op.
+
+- **70/30-split**: eerste deel ontwikkeling, laatste deel test; kapitaal en posities worden tussen segmenten gereset.
+- **Drie tijdvensters**: vaste regels getest op achtereenvolgens 40–60%, 60–80% en 80–100% van de dataset, met eerdere candles uitsluitend als indicator-warmup. Geen parameteroptimalisatie of volledige walk-forward-optimalisatie.
+- Deze vensters overlappen elkaar niet, maar overlappen wel deels met de 30%-test. Ze zijn geen onafhankelijke bevestigingen.
+- **Dubbele kosten**: fees en slippage verdubbeld, tot de bestaande modelgrenzen van 1% fee en 2% slippage per zijde.
+- **Kopen-en-vasthouden**: hetzelfde 30%-testsegment, met kosten aan beide zijden; zowel 100% als 25% initiële blootstelling. Het risicoprofiel is anders dan dat van de strategieën.
+- Bij minder dan 30 trades staat expliciet dat er te weinig bewijs is. Meerdere strategieën of coins vergelijken verhoogt het risico op toevallige winnaars.
+
+Long-only, één positie. Maximaal 0,25% gepland risico per trade en 25% blootstelling; blokkade op nieuwe entries na 1% dagverlies of 10% drawdown. Gaps kunnen meer verlies veroorzaken dan gepland. Daglimieten worden op candle-open getoetst; er is geen professionele realtime risicobewaking. Bij stop en target in dezelfde candle geldt conservatief stop-first.
+
+Historische candle-replay is geen autonome forward paper engine. Posities, rendementen, kosten en uitvoering blijven simulaties. Er is geen AI-API of live orderfunctie aangesloten.
 
 ## Testen
 
-```bash
-python -m pytest -q
+```powershell
+.\\.venv-313\\Scripts\\python.exe -m pytest -q
 ```
 
-## Ontwerp en grenzen
+Tests gebruiken eigen tijdelijke opslag en fictieve sleutels. Ze controleren onder meer exact hervatten van replays, opslag, CSV-validatie, verwijderen van onvoltooide candles, publieke data-cache, benchmarkkosten, updatecontrole, back-up, herstel bij onderbreking en Windows-versleuteling.
 
-- `market_data.py`: synthetische data + CoinGecko-adapter, controle van candles.
-- `strategies.py`: vaste indicatoren en signalen op **gesloten** candles.
-- `engine.py`: backtest/replay, risicoregels, conservatieve kosten en transactielog.
-- `app.py`: FastAPI, lokale webinterface + JSON endpoints, tijdelijke sessie.
-- `static/`: Nederlandstalig dashboard zonder trackers/CDN.
-- `tests/`: unit- en integratietests.
-
-Meer informatie over het latere AI-onderzoek: `AI_STRATEGIE_ONDERZOEK.md`.
-
-**Beperkingen v0.1**
-
-1. De bot is een **lokale onderzoekstool**, niet een production-ready 24/7-automatisering. Replay kan worden hervat zolang het proces actief is; na herstart wordt het geheugen gewist. Exporteer resultaten naar CSV.
-2. Er is geen AI-API aangesloten. De strategieën zijn expliciete regels, geen oncontroleerbare AI-voorspellingen. AI kan later als **research assistant** hypothesen formuleren, maar krijgt geen handelstoegang.
-3. Geen strategie-optimalisatie, monte-carlo of bewijs voor rendabiliteit. Bij weinig trades wordt dat zichtbaar gemeld.
-4. Alleen long, één open positie, drie vooraf gekozen coins (Bitcoin, Ethereum, Solana). Geen cross-coin portfolio of FX-conversie.
-5. Prijsvermelding en fictief kapitaal staan in **USD**, geen EUR. Belastingen zijn niet in de trading-P&L opgenomen.
-6. De max drawdown-blokkade voorkomt nieuwe entries, maar liquideert een bestaande positie niet gedwongen. Fictieve cijfers kunnen daardoor meer dalen.
-7. Daglimiet toetst op bar-open en kan bij intrabar verlies te laat reageren. Bij 4u-candles is dat een illustratie, geen professioneel risicosysteem.
-8. Grafiek laat een afsluitkoers-lijn zien, geen volledige candle-chart. Dit kan later worden uitgebreid.
-9. OHLC-backsimulatieresultaten benaderen geen echte orderboekdiepte, funding, spread of belastingen. Gemodelleerde commissies/slippage zijn vereenvoudigingen.
-10. Volume in de DEMO is uitsluitend synthetisch. Niet gebruiken om prestaties te claimen.
-
-### Volgende implementatiefase
-
-- Verifieer API-key en beschikbaar historisch tijdsbereik.
-- Bouw caching naar SQLite, timestamp-geregelde **forward paper engine** en een scheduler die uitsluitend nieuwe definitief gesloten candles verwerkt.
-- Voeg echte OHLCV-databron toe indien gewenst, anders alleen EMA/RSI/prijsuitbraak.
-- Voeg portfolio- en kill-switchmonitoring, een duurzaam journal, parametrische research met gescheiden walk-forward-data en AI als *niet-uitvoerende* hypothese-generator toe.
-
-**Geen financieel advies.** Dit project dient uitsluitend om de basis uit de 100-dagencursus te oefenen en strategieën te weerleggen of voorlopig te ondersteunen; het is niet bedoeld om automatisch live trading te starten.
+**Geen bewijs van winstgevendheid of financieel advies.** De app helpt strategieën eerlijker onderzoeken, niet resultaten winstgevend laten lijken.
