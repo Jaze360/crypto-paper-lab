@@ -1,4 +1,4 @@
-# Crypto Paper Lab — v0.14
+# Crypto Paper Lab — v0.15
 
 **Cartridge kiezen → Test cartridge.** Drie kalenderjaren, gesloten 1-uurscandles, top tien coins en kosten staan vast. Uitsluitend paper trading; geen echte orders.
 
@@ -20,13 +20,17 @@ Iedere geselecteerde coin krijgt dezelfde exacte periode: drie kalenderjaren tot
 
 De drie samenvattingskaarten tellen coins: volledig getest, positief na kosten, positief bij dubbele kosten. Ze tonen geen gemiddeld of gezamenlijk rekeningrendement. Per coin staan rendement over de volledige drie jaar, drawdown, trades, kostenstress en controle. De drie gescheiden controleperioden draaien automatisch op de achtergrond, ieder met nieuw fictief kapitaal. De volledige driejaarstest start één keer met kapitaal en kan de bestaande permanente risicostop bereiken; dat blijft zichtbaar in de beoordeling.
 
-Een positieve backtest is aanleiding voor nieuw paper-onderzoek, geen toestemming of garantie om met echt geld te handelen. Criteria en beperkingen staan uitklapbaar bij de test. Naast de vier oorspronkelijke cartridges zijn er twee nieuwe vaste hypotheses: **Langzaam momentum · 63 dagen** en **Kanaaluitbraak · 55/20 dagen**. Beide gebruiken LONG/cash, voltooide UTC-dagen voor signalen en volatiliteit, en uitvoering en beschermende stops op uurcandles. Hun [regels zijn vooraf vastgelegd](HYPOTHESEN_LANGZAAM_V1.md); geen parameters kiezen of optimaliseren.
+Het hoofdscherm bevat precies zes cartridges: **Langzaam momentum · 63 dagen**, **Kanaaluitbraak · 55/20 dagen**, **Supertrend · 10 × 3**, **Bollinger-herstel · 20 × 2**, **Keltner-uitbraak · 20 × 2** en **Mislukte uitbraak · 20/100**. Alle zes testen LONG + SHORT. Signalen en volatiliteit gebruiken voltooide UTC-dagen, opgebouwd uit dezelfde uurdata; uitvoering en beschermende stops blijven op uurcandles.
+
+De twee behouden strategieën krijgen een v1.1-uitbreiding met spiegelbeeldige shortregels. Hun oorspronkelijke v1.0 LONG-regels blijven bestaan. De test rekent automatisch ook een afzonderlijke oorspronkelijke LONG-referentie door op dezelfde candles, kostenstress en drie controleperioden. Open **Details** om te zien of shorts helpen. LONG/SHORT-bijdragen binnen het gecombineerde account zijn geen afzonderlijke accounttests. CSV bevat bijdragen en de afzonderlijke LONG-referentie.
+
+De vier oorspronkelijke snelle cartridges zijn uit de primaire keuze vervangen; hun broncode, oude bediening en opgeslagen resultaten blijven behouden. Een positieve backtest is aanleiding voor nieuw paper-onderzoek, geen toestemming of garantie om met echt geld te handelen. Criteria en beperkingen staan uitklapbaar bij de test. De [nieuwe regels zijn vooraf vastgelegd](HYPOTHESEN_V015.md); geen parameters kiezen of optimaliseren. De [oorspronkelijke LONG-regels](HYPOTHESEN_LANGZAAM_V1.md) blijven als referentie geldig.
 
 De permanente risicostop krijgt voorrang in de beoordeling, inclusief de eerste datum. De rest van de historie wordt nog verwerkt, maar de strategie mag daarna niet meer instappen. Een resultaat over drie jaar betekent dus niet noodzakelijk drie jaar actief handelen. Oude opgeslagen resultaten krijgen dezelfde duidelijkere weergave; hun getallen worden niet veranderd.
 
 ## Vaste kosten en risico
 
-Per coin 10.000 USDT fictief kapitaal, één positie tegelijk. De oorspronkelijke vier cartridges gebruiken LONG + SHORT; de twee nieuwe gebruiken alleen LONG/cash. Fee 0,10% per zijde, slippage 0,05% per fill, vaste shortleenproxy 0,02% per dag. Kostenstress verdubbelt alle drie. Gepland risico maximaal 0,25% per trade, instapblootstelling maximaal 25%, dagelijkse entry-stop 1%, permanente drawdownstop 10%. Geen hefboom.
+Per coin/account 10.000 USDT fictief kapitaal, één positie tegelijk. Alle zes primaire cartridges gebruiken LONG + SHORT; de afzonderlijke oorspronkelijke referenties gebruiken LONG/cash. Fee 0,10% per zijde, slippage 0,05% per fill, vaste shortleenproxy 0,02% per dag. Kostenstress verdubbelt alle drie. Gepland risico maximaal 0,25% per trade, instapblootstelling maximaal 25%, dagelijkse entry-stop 1%, permanente drawdownstop 10%. Geen hefboom.
 
 Dit zijn Binance-spotprijzen met een vereenvoudigd shortonderpandmodel. Historische perpetual-funding, margin-liquidaties en werkelijke orderboekuitvoering ontbreken. De kosten zijn een scenario, geen bevestigd actueel accounttarief van een beurs. Een stop-loss garandeert geen maximaal verlies bij gaps.
 

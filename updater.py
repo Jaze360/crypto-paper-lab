@@ -107,6 +107,10 @@ def archive_files(raw):
         if tuple(map(int,release.split(".")))>=(0,14,0):
             if not {"cartridge_momentum63.py","cartridge_donchian55.py","slow_features.py"}.issubset(result):
                 raise ValueError("Update mist de langzame cartridges.")
+        if tuple(map(int,release.split(".")))>=(0,15,0):
+            if not {"cartridge_slow_both.py","cartridge_supertrend.py","cartridge_bollinger.py",
+                    "cartridge_keltner.py","cartridge_failed_breakout.py"}.issubset(result):
+                raise ValueError("Update mist de nieuwe LONG/SHORT-cartridges.")
         return result
 
 def stage():

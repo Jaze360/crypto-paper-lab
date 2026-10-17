@@ -20,9 +20,10 @@ class Cartridge:
     prepare:Callable|None=None
     dependencies:tuple=()
     directions:tuple=("long","short","both")
+    long_reference:str|None=None
 
     def describe(self):
         return {"id":self.id,"name":self.name,"description":self.description,"version":self.version,
                 "parameters":list(self.parameters),"requires_volume":self.requires_volume,
                 "protocol_only":self.protocol_only,"fixed":dict(self.fixed),
-                "directions":list(self.directions),"status":"Onderzoek; geen bewezen winstgevendheid"}
+                "directions":list(self.directions),"long_reference":self.long_reference,"status":"Onderzoek; geen bewezen winstgevendheid"}

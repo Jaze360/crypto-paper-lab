@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.15.0
+- Twee behouden langzame strategieën uitgebreid met spiegelbeeldige SHORT-regels als nieuwe v1.1-cartridges; oorspronkelijke v1.0 LONG-implementaties behouden.
+- Automatische afzonderlijke LONG-referentie op dezelfde candles, normale/dubbele kosten en controleperioden, zichtbaar in details en CSV.
+- Vier vervangers in de primaire keuze: dagelijkse Supertrend, Bollinger-herstel, Keltner-uitbraak en mislukte uitbraak met EMA100-filter.
+- Precies zes primaire keuzes; oorspronkelijke snelle strategieën en alle opgeslagen onderzoeken behouden voor het archief.
+- Trades zichtbaar als LONG/SHORT-aantallen; bijdrage en kosten per richting in details. Geen extra testinstellingen.
+- Ongewijzigde driejaarsdata, kostenstress, onderpand en risicolimieten. Nieuwe regels vóór meting vastgelegd; geen live orders of hefboom.
+
 ## 0.14.0
 - Twee nieuwe cartridges: langzaam 63-daags momentum en 55/20-daagse kanaaluitbraak, beide LONG/cash met vooraf vastgelegde regels.
 - Volledige UTC-dagen voor signalen en ATR, causale beschikbaarheid en uitvoering/beschermende stops op uurcandles.

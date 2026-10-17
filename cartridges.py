@@ -9,8 +9,14 @@ from cartridge_breakout import CARTRIDGE as BREAKOUT
 from cartridge_pullback import CARTRIDGE as PULLBACK
 from cartridge_momentum63 import CARTRIDGE as MOMENTUM63
 from cartridge_donchian55 import CARTRIDGE as DONCHIAN55
+from cartridge_slow_both import MOMENTUM_BOTH,CHANNEL_BOTH
+from cartridge_supertrend import CARTRIDGE as SUPERTREND
+from cartridge_bollinger import CARTRIDGE as BOLLINGER
+from cartridge_keltner import CARTRIDGE as KELTNER
+from cartridge_failed_breakout import CARTRIDGE as FAILED_BREAKOUT
 
-_items=(EMA,RSI,BREAKOUT,PULLBACK,MOMENTUM63,DONCHIAN55)
+PRIMARY_IDS=('momentum63_both','donchian55_both','supertrend','bollinger','keltner','failed_breakout')
+_items=(EMA,RSI,BREAKOUT,PULLBACK,MOMENTUM63,DONCHIAN55,MOMENTUM_BOTH,CHANNEL_BOTH,SUPERTREND,BOLLINGER,KELTNER,FAILED_BREAKOUT)
 if len({c.id for c in _items})!=len(_items):raise ValueError("Dubbele cartridge-ID")
 REGISTRY=MappingProxyType({c.id:c for c in _items})
 
@@ -29,4 +35,4 @@ def manifest(strategy):
     return {**c.describe(),"api_version":1,"code_sha256":dict(_fingerprint(strategy))}
 
 def catalog():
-    return [manifest(c.id) for c in _items]
+    return [{**manifest(c.id),'primary':c.id in PRIMARY_IDS} for c in _items]

@@ -1,10 +1,12 @@
-# Strategiecartridges — v0.14
+# Strategiecartridges — v0.15
 
 Een cartridge bevat beslisregels, een stabiele ID, eigen versie, uitleg, relevante parameters, warm-up, LONG/SHORT-signalen, instapreden en eventuele vaste regels of volumevereisten. Alle cartridges gebruiken dezelfde PaperEngine. Posities, kosten, onderpand, stops, risicobudget en opslag blijven gedeeld.
 
 ## Gebruik
 
-Kies op het hoofdscherm één van zes cartridges en klik **Test cartridge**. Alle cartridges gebruiken hetzelfde vaste plan: drie kalenderjaren, uurcandles, top tien en kostenstress. Er zijn geen instelbare parameters in deze bediening. De twee langzame LONG/cash-cartridges zijn alleen beschikbaar in dit vaste plan. De oude bediening op `/archief` behoudt de vier oorspronkelijke cartridges en haar eerdere onderzoeksfuncties.
+Kies op het hoofdscherm één van zes LONG/SHORT-cartridges en klik **Test cartridge**. Alle cartridges gebruiken hetzelfde vaste plan: drie kalenderjaren, uurcandles, top tien en kostenstress. Er zijn geen instelbare parameters in deze bediening. De nieuwe cartridges zijn alleen beschikbaar in dit vaste plan. De oude bediening op `/archief` behoudt de vier oorspronkelijke cartridges en haar eerdere onderzoeksfuncties.
+
+`PRIMARY_IDS` bepaalt de zes zichtbare keuzes; de volledige registry bewaart ook de zes oude implementaties voor referentie en oude rapporten. `cartridge_slow_both.py` breidt de twee v1.0 LONG-cartridges uit zonder hun bestanden te veranderen. `long_reference` verklaart de afzonderlijk te testen oorspronkelijke LONG-cartridge. De vier nieuwe modules bevatten ieder een eigen `Cartridge`: Supertrend, Bollinger, Keltner en mislukte uitbraak. [Vaste regels v0.15](HYPOTHESEN_V015.md).
 
 De drie referenties blijven dezelfde drie referenties en de Botarena blijft negen profielen bevatten. Het verplaatsen van code maakt geen strategie winstgevender. Twaalf volledige LONG/SHORT/BOTH-uitkomsten zijn vergeleken met vóór de omzetting vastgelegde v0.10-uitkomsten en blijven identiek.
 

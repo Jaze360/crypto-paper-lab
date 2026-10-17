@@ -23,11 +23,13 @@ def fixed_plan(cartridge,cutoff=None):
     end=end.tz_convert('UTC');start=end-pd.DateOffset(years=YEARS);days=(end-start).days
     parameters=StrategyConfig(trade_mode='both').model_dump()
     parameters.update(dict(c.fixed))
-    return {'id':PLAN_ID,'cartridge':manifest(cartridge),'parameters':parameters,'days':days,'interval_minutes':INTERVAL,
+    plan={'id':PLAN_ID,'cartridge':manifest(cartridge),'parameters':parameters,'days':days,'interval_minutes':INTERVAL,
             'from':start.isoformat(),'until_exclusive':end.isoformat(),'expected_candles':days*24,
             'capital':CAPITAL,'fee_pct':FEE*100,'slippage_pct':SLIP*100,'short_borrow_daily_pct':.02,
             'source':'Binance SPOT OHLCV in USDT','directions':{'long':'LONG / cash','short':'SHORT / cash','both':'LONG + SHORT'}[parameters['trade_mode']],'universe_size':10,
             'code_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    if c.long_reference:plan['long_reference']=manifest(c.long_reference)
+    return plan
 
 def prepare(candles,plan):
     if not candles.attrs.get('volume_is_actual'):raise DataError('Echt candlevolume ontbreekt.')
@@ -65,9 +67,14 @@ def evaluate(df,plan,progress=None):
     reason=('Verder paper-onderzoek' if consistent else 'Risicostop bereikt' if not checks['risk_stop_not_hit'] else 'Negatief na kosten' if not checks['positive_full'] else
             'Verdwijnt bij dubbele kosten' if not checks['positive_stress'] else 'Te weinig trades' if not checks['enough_trades'] else
             'Risicostop bereikt' if not checks['risk_stop_not_hit'] else 'Niet stabiel over perioden' if not checks['all_periods_positive'] else 'Weinig trades per periode')
-    return {'metrics':full,'stress':stress,'periods':periods,'consistent':consistent,'checks':checks,'assessment':reason,
+    result={'metrics':full,'stress':stress,'periods':periods,'consistent':consistent,'checks':checks,'assessment':reason,
             'candles':n,'from':df.iloc[0].time.isoformat(),'to':df.iloc[-1].time.isoformat(),
             'data_sha256':hashlib.sha256(df[['time','open','high','low','close','volume']].to_json(orient='records',date_format='iso',date_unit='ms').encode()).hexdigest()}
+    if plan.get('long_reference'):
+        if progress:progress('Afzonderlijke oorspronkelijke LONG-referentie doorrekenen')
+        reference=fixed_plan(plan['long_reference']['id'],plan['until_exclusive'])
+        result['long_reference']=evaluate(df,reference)
+    return result
 
 def run_test(cartridge,progress=None,*,cutoff=None,universe=None,fetch=None):
     plan=fixed_plan(cartridge,cutoff)
