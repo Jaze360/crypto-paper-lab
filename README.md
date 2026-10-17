@@ -14,20 +14,26 @@
 
 ## Starten op Windows
 
-Installeer Python 3.11 of nieuwer. Open PowerShell in deze map.
+Gebruik voor v0.1 **Python 3.13 (Windows x64, standaard CPython)**. Python 3.15 wordt niet ondersteund door deze dependencyset. Open PowerShell in deze map. Met Python Install Manager kun je Python 3.13 installeren via `py install 3.13`; anders via https://www.python.org/downloads/windows/.
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m uvicorn app:app --host 127.0.0.1 --port 8501
+py -3.13 -m venv .venv-313
+.\.venv-313\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-313\Scripts\python.exe -m pip install --only-binary=:all: -r requirements.txt
+.\.venv-313\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8501
 ```
 
 Open **http://127.0.0.1:8501**.
 
-**Makkelijkste optie op Windows:** dubbelklik op `START_WINDOWS.bat`. Het script installeert de eerste keer de Python-dependencies en opent daarna automatisch je lokale dashboard. Laat het zwarte venster open zolang je de app gebruikt.
+**Makkelijkste optie op Windows:** dubbelklik op `START_WINDOWS.bat`. Het script gebruikt een aparte Python 3.13-omgeving (`.venv-313`), controleert bij elke start de dependencies en opent daarna automatisch je lokale dashboard. Laat het zwarte venster open zolang je de app gebruikt.
+
+### Installatiefout bij pandas / ontbrekende uvicorn
+
+Als pandas om Visual Studio of `vswhere.exe` vraagt, probeert pip uit broncode te bouwen. Gebruik bovenstaande Python 3.13-instructies met `--only-binary=:all:`. Een oude `.venv` met Python 3.15 mag blijven staan: de nieuwe omgeving heet `.venv-313`. De fout `No module named uvicorn` is een gevolg van de afgebroken installatie. Installeer alle requirements succesvol voordat je de app start.
 
 ### macOS / Linux
+
+Gebruik ook hier Python 3.13 (`python3.13` in plaats van `python3` hieronder).
 
 ```bash
 python3 -m venv .venv
