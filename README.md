@@ -1,8 +1,41 @@
-# Crypto Paper Lab — v0.2
+# Crypto Paper Lab — v0.3
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders, exchange-accountkoppeling, shorts of hefboom.
 
-## Nieuw in v0.2
+## Nieuw in v0.3
+
+- Meerjarige publieke OHLCV-historie (Binance data-only), tot 5 jaar op 1 uur / 4 uur / 1 dag. Prijzen in **USDT**; Kraken, CoinGecko en CSV blijven in USD.
+- EMA-, RSI-, breakout-, volume- en ATR-stop/targetparameters instelbaar. De bestaande risicolimieten blijven vast.
+- Tijd in markt, gemiddelde en maximale kapitaalblootstelling en gemiddelde positieduur.
+- **Walk-forward + laatste 20% testen**: maximaal vier vooraf gedefinieerde parameterkandidaten per strategie; selectie op eerdere data, drie volgende testvensters, daarna een laatste test buiten alle selecties.
+- Dezelfde test op maximaal vier coins. Mislukte markten blijven zichtbaar; dit vormt geen portfolio en geen winnaarselectie.
+- Lange downloads en onderzoeken lopen op de achtergrond, met voortgang. Afgeronde resultaten worden bewaard; een onafgeronde taak stopt bij serverherstart.
+- Snellere candle-uitvoering voor grote datasets; dashboardbestanden worden opnieuw geladen om oude browserinhoud te voorkomen.
+
+### Nieuwe onderzoeken gebruiken
+
+1. Installeer via **Controleren op updates > Update klaarzetten**, sluit de server en start **START_WINDOWS.bat** opnieuw.
+2. Kies **Meerjarige OHLCV — publiek, USDT**, bijvoorbeeld **3 jaar** en **4 uur**.
+3. Kies je strategie. Optioneel: open **Strategieparameters**. De handmatig gekozen parameters gelden voor een gewone backtest en vaste vergelijking, en vormen de basis voor walk-forward.
+4. Klik **Walk-forward + laatste 20% testen**. De voortgang staat in de statusbalk; laat de server draaien.
+5. Onder **Vergelijk meerdere coins** kun je maximaal vier coins selecteren en dezelfde walk-forward-procedure uitvoeren.
+6. Open resultaten later via **Opgeslagen onderzoeken**.
+
+De historische bron vereist geen sleutel of beursaccount. Een regio-, markt- of netwerkbeperking wordt als fout getoond; gebruik dan een eigen CSV. Er is geen wisselkoersconversie tussen USD en USDT. De grafiek toont de feitelijke dataperiode; die kan korter zijn dan gevraagd door de noteringsdatum. Per aanvraag maximaal 50 pagina's van 1.000 candles; de download wordt een uur lokaal gecachet.
+
+### Hoe de parameterkeuze werkt
+
+De eerste 40% vormt de eerste ontwikkelperiode. Daarna volgen drie aaneengesloten testvensters tot 80%. Voor elk venster worden parameters opnieuw geselecteerd op uitsluitend de eerdere candles. De laatste 20% wordt niet gebruikt in deze selecties. De parameters voor die laatste test worden vastgezet op basis van de eerste 80%.
+
+De vooraf vastgelegde score is netto rendement minus maximale drawdown, met minimaal vijf trainingstrades. Zonder geldige kandidaat blijven de basisparameters behouden. Dit is een beperkte, uitlegbare selectie; geen uitputtende optimalisatie en geen bewijs voor een handelsvoordeel. De gekozen parameters staan bij ieder venster.
+
+Vensters beginnen elk met nieuw fictief kapitaal en een lege positie. Indicatoren gebruiken eerdere candles als warmup. Rendementen uit de vensters vormen geen doorlopende samengestelde rekening. Door dezelfde laatste periode herhaald te bekijken, wordt die voor jou niet meer ongezien.
+
+Marktperiodes worden **achteraf** beschreven als stijgend (>5% prijsstijging), dalend (<-5%) of zijwaarts. Die indeling stuurt de handel niet. De laatste test toont ook dubbele kosten en benchmarks met 25% en 100% blootstelling.
+
+**Tijd in markt** telt candles met een positie na beslissingen op candle-open; een stop binnen die candle telt als actieve candle. Dit is geen exacte intrabar verblijfsduur. **Gemiddelde blootstelling** is positiewaarde gedeeld door accountvermogen op candle-open, gemiddeld over alle candles inclusief lege posities. Lage blootstelling kan lage rendementen en lage drawdown verklaren. Een koersstijging kan de gemeten blootstelling boven de oorspronkelijke instaplimiet laten uitkomen.
+
+### Bestaande functies uit v0.2
 
 - Instellingen, CSV-datasets, backtests, vergelijkingen en replays worden lokaal bewaard in SQLite.
 - Een replay hervatten na herstart gebruikt dezelfde opgeslagen candles en voortgang.
@@ -83,20 +116,20 @@ Geavanceerd/testen: `PAPER_LAB_DATA_DIR` wijzigt de bewaarlocatie. Gebruik één
 | Demo | BTC, ETH, SOL; 360 synthetische 4-uurscandles | Verzonnen OHLCV, alleen om de werking te testen |
 | CoinGecko | 12 geselecteerde coin-ID's; 7/14/30/90/180/365 dagen | OHLC zonder candlevolume; volume-breakout wordt geblokkeerd. Beschikbaarheid hangt van je abonnement af; langere periodes gebruiken grovere candles |
 | Kraken publiek | BTC, ETH, SOL, XRP, ADA, DOGE, AVAX, LINK, DOT, LTC, BCH, UNI, alle in USD | Echt candlevolume, maximaal 719 gesloten candles. De actuele onvoltooide candle wordt verwijderd |
-| Eigen CSV | Dezelfde coinselector; maximaal 50.000 rijen / 8 MB | Vaste intervallen, echte door jou aangeleverde OHLCV. USD-prijzen en bronkwaliteit moet je zelf controleren |
+| Meerjarige bron | Dezelfde 12 markten, 7 dagen tot 5 jaar; 1u/4u/1d | Binance data-only, USDT, gesloten candles; paginering tot 50.000 candles |\n| Eigen CSV | Dezelfde coinselector; maximaal 50.000 rijen / 8 MB | Vaste intervallen, echte door jou aangeleverde OHLCV. USD-prijzen en bronkwaliteit moet je zelf controleren |
 
 Kraken levert ongeveer maximaal 30 dagen op 1 uur, 120 dagen op 4 uur of 719 dagen op 1 dag; de periodekeuze in deze versie gaat tot 365 dagen. De grafiek toont steeds de **feitelijk ontvangen** periode. Nieuwe of ontbrekende markten kunnen minder data opleveren of een duidelijke fout geven. Geen stilzwijgende terugval op demodata.
 
 CSV-kolommen: `time,open,high,low,close,volume`. Tijd is candle-start in UTC (ISO-8601); candles moeten zonder gaten aansluiten. Ontbrekende tijdzone wordt als UTC behandeld. De laatste candle wordt alleen meegenomen als het volledige interval voorbij is. Geen fictief volume toevoegen om de volumestrategie te kunnen gebruiken.
 
-Officiële broninformatie:
+Officiële broninformatie:\n- Binance publieke data-only endpoints: https://developers.binance.com/docs/binance-spot-api-docs/faqs/market_data_only\n- Binance historische candles: https://developers.binance.com/docs/binance-spot-api-docs/rest-api/market-data-endpoints
 - CoinGecko: https://docs.coingecko.com/reference/coins-id-ohlc
 - Kraken: https://docs.kraken.com/api/docs/rest-api/get-ohlc-data
 - GitHub CLI: https://cli.github.com/manual/gh_auth_login
 
-## Strategietests lezen
+## Vaste strategievergelijking lezen (apart van walk-forward)
 
-De vaste strategieën blijven **EMA 8/21**, **RSI(14) herstel** en **20-bar breakout + volume**. Meer strategieën of parameters leveren op zichzelf geen beter handelsresultaat op.
+De standaardstrategieën blijven **EMA 8/21**, **RSI(14) herstel** en **20-bar breakout + volume**. De parameters zijn nu instelbaar; meer parameters leveren op zichzelf geen beter handelsresultaat op.
 
 - **70/30-split**: eerste deel ontwikkeling, laatste deel test; kapitaal en posities worden tussen segmenten gereset.
 - **Drie tijdvensters**: vaste regels getest op achtereenvolgens 40–60%, 60–80% en 80–100% van de dataset, met eerdere candles uitsluitend als indicator-warmup. Geen parameteroptimalisatie of volledige walk-forward-optimalisatie.
@@ -118,4 +151,5 @@ Historische candle-replay is geen autonome forward paper engine. Posities, rende
 Tests gebruiken eigen tijdelijke opslag en fictieve sleutels. Ze controleren onder meer exact hervatten van replays, opslag, CSV-validatie, verwijderen van onvoltooide candles, publieke data-cache, benchmarkkosten, updatecontrole, back-up, herstel bij onderbreking en Windows-versleuteling.
 
 **Geen bewijs van winstgevendheid of financieel advies.** De app helpt strategieën eerlijker onderzoeken, niet resultaten winstgevend laten lijken.
+
 

@@ -225,3 +225,60 @@ def import_csv(text, coin):
 
 
 
+
+BINANCE_SYMBOLS=dict(zip(COINS,["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","AVAXUSDT","LINKUSDT","DOTUSDT","LTCUSDT","BCHUSDT","UNIUSDT"]))
+
+class HistoricalProvider:
+    """Paginated public OHLCV. Dedicated data-only domain; no credentials or trading routes."""
+    def candles(self,coin="bitcoin",days=1095,interval=240,progress=None):
+        from storage import cache_get,cache_put
+        if coin not in BINANCE_SYMBOLS or interval not in (60,240,1440) or not 7<=days<=1825:
+            raise DataError("Historie vereist een bekende coin, 1u/4u/1d en maximaal vijf jaar.")
+        end=int(pd.Timestamp.now(tz="UTC").floor(f"{interval}min").timestamp()*1000)-1
+        step=interval*60_000
+        start=end+1-days*86_400_000
+        key=f"historical-v1:{coin}:{days}:{interval}:{end//3_600_000}"
+        stored=cache_get(key,ttl=3600)
+        if stored:
+            if progress:progress("Historische data uit lokale cache geladen.")
+            return unpack_candles(stored)
+        cursor=start;rows=[]
+        with requests.Session() as session:
+            for page in range(50):
+                if progress:progress(f"Historie laden: {len(rows):,} candles; pagina {page+1}.")
+                try:
+                    response=session.get("https://data-api.binance.vision/api/v3/klines",
+                        params={"symbol":BINANCE_SYMBOLS[coin],"interval":{60:"1h",240:"4h",1440:"1d"}[interval],
+                                "startTime":cursor,"endTime":end,"limit":1000},timeout=25)
+                    if response.status_code in (418,429):
+                        raise DataError("Historische databron begrenst aanvragen; probeer later opnieuw.")
+                    if response.status_code in (403,451):
+                        raise DataError("Historische databron is niet toegankelijk in deze regio. Gebruik een OHLCV-CSV.")
+                    response.raise_for_status();batch=response.json()
+                except (requests.RequestException,ValueError) as exc:
+                    if isinstance(exc,DataError):raise
+                    raise DataError("Historische data niet bereikbaar; geen vervanging door demodata.") from exc
+                if not isinstance(batch,list):raise DataError("Ongeldig antwoord van historische databron.")
+                if not batch:break
+                if any(not isinstance(x,list) or len(x)<7 for x in batch):
+                    raise DataError("Historische candle mist verplichte velden.")
+                last=int(batch[-1][0])
+                if last<cursor:raise DataError("Historische paginering maakte geen voortgang.")
+                for row in batch:
+                    opened=int(row[0]);closed=int(row[6])
+                    if cursor<=opened<=end and closed<=end:
+                        rows.append({"time":pd.to_datetime(opened,unit="ms",utc=True),
+                                     "open":float(row[1]),"high":float(row[2]),"low":float(row[3]),
+                                     "close":float(row[4]),"volume":float(row[5])})
+                cursor=last+step
+                if cursor>end or len(batch)<1000:break
+            else:raise DataError("Historie overschrijdt de limiet van 50 pagina's.")
+        if len(rows)<60:raise DataError("Te weinig historische candles beschikbaar voor deze markt.")
+        df=pd.DataFrame(rows)
+        if not np.isfinite(df.volume).all() or (df.volume<0).any():raise DataError("Ongeldig candlevolume.")
+        df.attrs.update(source="Historische OHLCV (Binance publiek)",coin=coin,quote="USDT",volume_is_actual=True,
+                        timeframe=f"{interval} min",requested_days=days,
+                        note="Prijzen in USDT, niet USD. Publieke data zonder account; beschikbaarheid hangt af van noteringsdatum en regio.")
+        result=validate(df);cache_put(key,pack_candles(result))
+        return result
+

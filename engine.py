@@ -5,7 +5,7 @@ from typing import Optional
 import math
 import numpy as np
 import pandas as pd
-from strategies import add_indicators,signal,STRATEGIES
+from strategies import add_indicators,signal,signals,config,STRATEGIES
 
 RISK_PER_TRADE = 0.0025  # 0.25%, educational policy hardcap
 MAX_EXPOSURE = 0.25     # 25% of current equity
@@ -23,12 +23,17 @@ class Position:
     signal_index: int
 
 class PaperEngine:
-    def __init__(self, candles:pd.DataFrame, strategy:str="ema", capital:float=10000.0, fee:float=0.001, slip:float=0.0005, start:int=0, end:Optional[int]=None):
+    def __init__(self, candles:pd.DataFrame, strategy:str="ema", capital:float=10000.0, fee:float=0.001, slip:float=0.0005, start:int=0, end:Optional[int]=None, parameters=None):
         if strategy not in STRATEGIES: raise ValueError("Onbekende strategie")
         if strategy=="breakout" and not candles.attrs.get("volume_is_actual",False):
             raise ValueError("Volume-breakout vereist echt candlevolume; CoinGecko OHLC heeft dat niet.")
         if capital<=0 or not(0<=fee<=.01) or not(0<=slip<=.02):raise ValueError("Ongeldige parameters")
-        self.d=add_indicators(candles)
+        self.parameters=config(parameters)
+        self.d=add_indicators(candles,self.parameters)
+        self.rows=list(self.d.itertuples(index=False))
+        self.entry_signals,self.exit_signals=signals(self.d,strategy)
+        self.active_bars=0;self.exposure_sum=0.;self.max_exposure=0.;self.holding_bars=[]
+        self._record=True
         self.strategy=strategy;self.capital=float(capital);self.fee=fee;self.slip=slip
         self.start=int(start);self.end=len(self.d) if end is None else min(int(end),len(self.d))
         self.idx=self.start;self.cash=float(capital);self.position=None
@@ -49,15 +54,16 @@ class PaperEngine:
         trade={"entry_time":p.entry_time,"exit_time":stamp,"entry":round(p.entry,6),"exit":round(fill,6),
                "qty":round(p.qty,8),"pnl":round(net,4),"pnl_R":round(net / max(1e-9, (p.entry-p.stop)*p.qty+p.fee_paid),3),
                "fees":round(fee+p.fee_paid,4),"reason":reason,"strategy":self.strategy}
+        self.holding_bars.append(max(0,self.idx-p.signal_index))
         self.trades.append(trade);self.events.append({"type":"SELL (PAPER)","time":stamp,"price":fill,"reason":reason})
         self.position=None
 
     def _entry(self, i:int, stamp:str, raw_open:float, atr:float):
         if not math.isfinite(atr) or atr<=0:return
         fill=raw_open*(1+self.slip)
-        stop=fill-1.5*atr
+        stop=fill-self.parameters.stop_atr*atr
         if stop<=0:return
-        target=fill+3.0*atr
+        target=fill+self.parameters.target_atr*atr
         # Buffer includes both entry and exit fees and slippage at stop, so planned loss <= risk budget.
         worst_exit=stop*(1-self.slip)
         unit_loss=max(1e-9,fill-worst_exit+self.fee*(fill+worst_exit))
@@ -70,14 +76,14 @@ class PaperEngine:
         self.position=Position(stamp,fill,qty,stop,target,fee,i-1)
         self.events.append({"type":"BUY (PAPER)","time":stamp,"price":fill,"reason":"Signaal vorige gesloten candle"})
 
-    def step(self, steps:int=1):
+    def step(self, steps:int=1, snapshot=True):
         for _ in range(max(0,int(steps))):
             if self.idx>=self.end:break
-            i=self.idx; row=self.d.iloc[i]; stamp=row.time.isoformat();day=str(row.time.date())
+            i=self.idx; row=self.rows[i]; stamp=row.time.isoformat();day=str(row.time.date())
             # Decisions at the candle OPEN can only use information available then.
             if self.current_day != day:
                 self.current_day=day;self.start_day_equity=self.equity(float(row.open))
-            _,should_exit=signal(self.d,i-1,self.strategy)
+            should_exit=bool(i>0 and self.exit_signals[i-1])
             if self.position and should_exit:
                 self._close(stamp,float(row.open),"Strategie exit vorige candle")
             # Apply gaps at open before sizing another position.
@@ -89,9 +95,13 @@ class PaperEngine:
             self.max_dd=max(self.max_dd,(self.peak-eq)/self.peak)
             if self.max_dd>=MAX_DRAWDOWN:self.locked=True
             daily_block=(eq < self.start_day_equity*(1-MAX_DAILY_LOSS))
-            should_enter,_=signal(self.d,i-1,self.strategy)
+            should_enter=bool(i>0 and self.entry_signals[i-1])
             if not self.position and should_enter and not self.locked and not daily_block:
-                self._entry(i,stamp,float(row.open),float(self.d.iloc[i-1].atr))
+                self._entry(i,stamp,float(row.open),float(self.rows[i-1].atr))
+            # Candle-based exposure; partial candles are not intrabar duration estimates.
+            exposure=self.position.qty*float(row.open)/max(self.equity(float(row.open)),1e-9) if self.position else 0.
+            if self.position:self.active_bars+=1
+            self.exposure_sum+=exposure;self.max_exposure=max(self.max_exposure,exposure)
             # Only now inspect intrabar highs/lows. Never re-enter at an earlier open
             # after a stop/target later in that same candle.
             if self.position:
@@ -101,26 +111,34 @@ class PaperEngine:
             eq=self.equity(float(row.close));self.peak=max(self.peak,eq)
             self.max_dd=max(self.max_dd,(self.peak-eq)/self.peak)
             if self.max_dd>=MAX_DRAWDOWN:self.locked=True
-            self.equity_points.append({"time":stamp,"equity":round(eq,4),"close":float(row.close)})
+            if self._record:self.equity_points.append({"time":stamp,"equity":round(eq,4),"close":float(row.close)})
             self.idx+=1;self.last_price=float(row.close)
-        return self.snapshot()
+        return self.snapshot() if snapshot else None
 
-    def finish(self):
-        self.step(self.end-self.idx)
+    def finish(self, record=True):
+        self._record=record
+        self.step(self.end-self.idx,snapshot=False)
         if self.position:
-            last=self.d.iloc[self.end-1];self._close(last.time.isoformat(),float(last.close),"Testperiode einde")
+            last=self.rows[self.end-1];self._close(last.time.isoformat(),float(last.close),"Testperiode einde")
+            self.max_dd=max(self.max_dd,(self.peak-self.cash)/self.peak)
             if self.equity_points:self.equity_points[-1]["equity"]=round(self.cash,4)
         return self.snapshot()
 
     def snapshot(self):
         mark=self.last_price or (float(self.d.iloc[self.idx-1].close) if self.idx>self.start else float(self.d.iloc[self.start].open))
         eq=self.equity(mark);pnl=eq-self.capital
+        stats=metrics(self.trades,self.capital,eq,self.max_dd)
+        processed=max(1,self.idx-self.start)
+        stats.update(time_in_market_pct=round(100*self.active_bars/processed,3),
+                     avg_exposure_pct=round(100*self.exposure_sum/processed,3),
+                     max_exposure_pct=round(100*self.max_exposure,3),
+                     avg_holding_bars=round(float(np.mean(self.holding_bars)),2) if self.holding_bars else None)
         completed=self.idx>=self.end
         return {"strategy":self.strategy,"completed":completed,"progress":self.idx-self.start,"total":self.end-self.start,
                 "initial_capital":self.capital,"equity":round(eq,2),"return_pct":round(pnl/self.capital*100,3),
                 "cash":round(self.cash,2),"max_drawdown_pct":round(self.max_dd*100,3),
                 "locked":self.locked,"open_position":asdict(self.position) if self.position else None,
-                "metrics":metrics(self.trades,self.capital,eq,self.max_dd),
+                "parameters":self.parameters.model_dump(),"metrics":stats,
                 "equity_curve":self.equity_points,"trades":self.trades,"events":self.events[-15:]}
 
 
@@ -137,13 +155,13 @@ def metrics(trades,capital,equity,max_dd):
             "max_drawdown_pct":round(max_dd*100,3)}
 
 
-def run_backtest(candles, strategy="ema",capital=10000,fee=.001,slip=.0005, split=.70):
+def run_backtest(candles, strategy="ema",capital=10000,fee=.001,slip=.0005, split=.70, parameters=None):
     n=len(candles)
     cut=round(n*split)
     if cut<40 or n-cut<20:raise ValueError("Te weinig candles voor een eerlijke train/test-split")
     # Full history used as backward-only indicator warmup, positions and cash reset at test boundary.
-    train=PaperEngine(candles,strategy,capital,fee,slip,start=0,end=cut).finish()
-    test=PaperEngine(candles,strategy,capital,fee,slip,start=cut,end=n).finish()
+    train=PaperEngine(candles,strategy,capital,fee,slip,start=0,end=cut,parameters=parameters).finish()
+    test=PaperEngine(candles,strategy,capital,fee,slip,start=cut,end=n,parameters=parameters).finish()
     warnings=[]
     for name,result in (("train",train),("out-of-sample",test)):
         if result['metrics']['trades']<30:
@@ -151,4 +169,6 @@ def run_backtest(candles, strategy="ema",capital=10000,fee=.001,slip=.0005, spli
     warnings.append("Train/test = geen optimalisatie of bewijs van winstgevendheid; historische resultaten zijn indicatief.")
     warnings.append("OHLC-volgorde intrabar is onbekend; bij stop én target wordt conservatief de stop genomen.")
     return {"train":train,"test":test,"split_index":cut,"total_candles":n,"warnings":warnings}
+
+
 

@@ -196,8 +196,8 @@ def test_intrabar_stop_cannot_trigger_retroactive_open_entry(monkeypatch):
     # Existing position stops below the open during this candle.
     eng.position=Position("previous",float(row.open),.01,float(row.open)*.999, float(row.high)*2,0,99)
     eng.cash=9000
-    monkeypatch.setattr(engine,"signal",lambda *a:(True,False))
-    eng.d.loc[100,"low"]=float(row.open)*.9
+    eng.entry_signals[:]=True;eng.exit_signals[:]=False
+    eng.rows[100]=eng.rows[100]._replace(low=float(row.open)*.9)
     eng.step(1)
     assert eng.position is None
     assert not any(e["type"]=="BUY (PAPER)" for e in eng.events)
@@ -262,4 +262,5 @@ def test_public_updates_do_not_require_github_cli(monkeypatch):
     info=updater.check()
     assert info["latest"]=="a"*40
     assert calls==["https://api.github.com/repos/Jaze360/crypto-paper-lab/commits/main"]
+
 

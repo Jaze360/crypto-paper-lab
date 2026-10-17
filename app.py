@@ -10,14 +10,14 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
-from market_data import (CoinGeckoProvider, KrakenProvider, demo_candles, DataError,
+from market_data import (CoinGeckoProvider, KrakenProvider, HistoricalProvider, demo_candles, DataError,
                          COINS, pack_candles, unpack_candles, import_csv)
 from engine import PaperEngine, run_backtest
-from strategies import STRATEGIES
+from strategies import STRATEGIES, StrategyConfig
 import storage
 from secrets_store import get_key, save_key
 import updater
-from research import research
+from research import research, walk_forward
 
 BASE = Path(__file__).parent
 VERSION = json.loads((BASE/"version.json").read_text(encoding="utf-8-sig"))["version"]
@@ -43,21 +43,24 @@ async def local_only(request: Request, call_next):
 
 class Params(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source: Literal["demo","coingecko","kraken","csv"] = "demo"
+    source: Literal["demo","coingecko","kraken","historical","csv"] = "demo"
     coin: str = Field(default="bitcoin", pattern="^[a-z0-9-]{1,60}$")
     strategy: Literal["ema","rsi","breakout"] = "ema"
-    days: Literal[7,14,30,90,180,365] = 30
+    days: Literal[7,14,30,90,180,365,730,1095,1825] = 30
     interval: Literal[60,240,1440] = 1440
+    parameters: StrategyConfig = Field(default_factory=StrategyConfig)
     dataset_id: str | None = Field(default=None, pattern="^[a-f0-9]{32}$")
     capital: float = Field(default=10000,ge=100,le=1e7,allow_inf_nan=False)
     fee_pct: float = Field(default=.10,ge=0,le=1,allow_inf_nan=False)
     slippage_pct: float = Field(default=.05,ge=0,le=2,allow_inf_nan=False)
 
-def get_data(p):
+def get_data(p,progress=None):
     if p.coin not in COINS:
         raise DataError("Niet toegestane munt.")
     if p.source=="demo":
         return demo_candles(p.coin,360)
+    if p.source=="historical":
+        return HistoricalProvider().candles(p.coin,p.days,p.interval,progress)
     if p.source=="coingecko":
         return CoinGeckoProvider().candles(p.coin,p.days)
     if p.source=="kraken":
@@ -76,20 +79,20 @@ def summary(df,p):
     gaps = df.time.diff().dropna()
     return {"source":df.attrs.get("source"),"coin":p.coin,"strategy":p.strategy,
             "volume_is_actual":df.attrs.get("volume_is_actual",False),
-            "synthetic":p.source=="demo", "timeframe":df.attrs.get("timeframe",df.attrs.get("time_frame","onbekend")),
+            "quote":df.attrs.get("quote","USD"),"requested_days":p.days,"synthetic":p.source=="demo", "timeframe":df.attrs.get("timeframe",df.attrs.get("time_frame","onbekend")),
             "note":df.attrs.get("note", "Synthetische demonstratiedata; geen echte historische koersen." if p.source=="demo" else "CoinGecko bepaalt candle-intervallen automatisch; langere periode betekent niet noodzakelijk meer candles."),
             "gaps_detected": bool(len(gaps) and (gaps > gaps.median()*1.5).any()),
             "candle_count":len(df),"from":df.iloc[0].time.isoformat(),"to":df.iloc[-1].time.isoformat(),
-            "price_data":[{"time":r.time.isoformat(),"close":round(float(r.close),5)} for r in df.itertuples()]}
+            "chart_sampled":len(df)>1500,"price_data":[{"time":r.time.isoformat(),"close":round(float(r.close),5)} for r in df.iloc[sorted(set(range(0,len(df),max(1,len(df)//1499)))|{len(df)-1})].itertuples()]}
 
 @app.get("/")
 def index():
-    return FileResponse(BASE/"static/index.html")
+    return FileResponse(BASE/"static/index.html",headers={"Cache-Control":"no-store"})
 
 @app.get("/static/{filename}")
 def static(filename:str):
     if filename not in {"app.js","style.css"}: raise HTTPException(404)
-    return FileResponse(BASE/"static"/filename)
+    return FileResponse(BASE/"static"/filename,headers={"Cache-Control":"no-store"})
 
 @app.get("/api/status")
 def status():
@@ -132,7 +135,7 @@ def set_settings(value:Settings):
 def backtest(p:Params):
     try:
         df=get_data(p)
-        result=run_backtest(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100)
+        result=run_backtest(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,parameters=p.parameters)
         payload={"meta":summary(df,p),"backtest":result,
                  "disclaimer":"Uitsluitend historische of synthetische simulatie; geen handelsorders."}
         run_id=storage.save_run("backtest",p.model_dump(),payload)
@@ -143,7 +146,7 @@ def backtest(p:Params):
 def compare(p:Params):
     try:
         df=get_data(p)
-        payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100)}
+        payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters)}
         return dict(payload,run_id=storage.save_run("research",p.model_dump(),payload))
     except (DataError,ValueError) as exc: raise HTTPException(422,str(exc)) from exc
 
@@ -167,7 +170,7 @@ def replay_payload(eng,meta,candles):
 def replay_start(p:Params):
     try:
         df=get_data(p)
-        eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100)
+        eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,parameters=p.parameters)
         meta=summary(df,p); candles=pack_candles(df)
         run_id=storage.save_run("replay",p.model_dump(),replay_payload(eng,meta,candles))
         with _lock:
@@ -209,7 +212,7 @@ def resume(run_id:str):
     if row["kind"]!="replay": raise HTTPException(422,"Dit is geen replay.")
     p=Params(**row["params"]); payload=row["payload"]
     df=unpack_candles(payload["candles"])
-    eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100)
+    eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,parameters=p.parameters)
     eng.step(payload["snapshot"]["progress"])
     with _lock:
         _sessions["local"]=(eng,payload["meta"],payload["candles"],run_id,p.model_dump())
@@ -243,4 +246,75 @@ def stage_update():
     try: return updater.stage()
     except (ValueError, OSError, __import__("subprocess").TimeoutExpired) as exc:
         raise HTTPException(503,str(exc) if isinstance(exc,ValueError) else "Update downloaden mislukt.") from exc
+
+
+
+# Long history and repeated strategy tests run in one background worker.
+# Existing results persist; unfinished jobs stop when the server stops.
+from concurrent.futures import ThreadPoolExecutor
+import uuid
+_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix="paper-research")
+_jobs={}
+_jobs_lock=RLock()
+
+class ResearchJob(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    params:Params=Field(default_factory=Params)
+    mode:Literal["compare","walkforward","batch"]="walkforward"
+    coins:list[str]=Field(default_factory=list,max_length=4)
+
+def execute_job(job_id,request):
+    def progress(message):
+        with _jobs_lock:_jobs[job_id]["message"]=message
+    try:
+        p=request.params
+        if request.mode=="compare":
+            df=get_data(p,progress)
+            progress("Strategieën vergelijken.")
+            payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters)}
+            kind="research"
+        elif request.mode=="walkforward":
+            df=get_data(p,progress)
+            payload={"meta":summary(df,p),"walkforward":walk_forward(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters,progress)}
+            kind="walkforward"
+        else:
+            if p.source not in {"historical","kraken","coingecko"}:
+                raise ValueError("Vergelijk meerdere coins met een echte API-databron.")
+            coins=list(dict.fromkeys(request.coins or [p.coin]))
+            results=[]
+            for i,coin in enumerate(coins):
+                progress(f"Coin {i+1}/{len(coins)}: {coin}")
+                item=p.model_copy(update={"coin":coin})
+                try:
+                    df=get_data(item,lambda m:progress(coin+": "+m))
+                    result=walk_forward(df,item.strategy,item.capital,item.fee_pct/100,item.slippage_pct/100,item.parameters)
+                    results.append({"coin":coin,"meta":summary(df,item),"walkforward":result})
+                except (ValueError,DataError) as exc:
+                    results.append({"coin":coin,"error":str(exc)})
+            if not any("walkforward" in x for x in results):
+                raise ValueError("Geen coin kon worden getest: "+"; ".join(x["coin"]+": "+x["error"] for x in results))
+            payload={"batch":results,"notes":["Iedere coin heeft een eigen chronologische test. Dit is geen gecombineerd portfolio.",
+                                             "Ook mislukte coins blijven zichtbaar; er is geen selectie van alleen succesvolle tests."]}
+            kind="batch"
+        record=storage.save_run(kind,request.params.model_dump(),payload)
+        with _jobs_lock:_jobs[job_id].update(status="done",message="Onderzoek bewaard.",run_id=record)
+    except Exception as exc:
+        with _jobs_lock:_jobs[job_id].update(status="failed",message=str(exc) if isinstance(exc,(ValueError,DataError)) else "Onderzoek mislukt. Controleer de servermelding en databron.")
+
+@app.post("/api/research/jobs")
+def start_job(request:ResearchJob):
+    if any(coin not in COINS for coin in request.coins):raise HTTPException(422,"Onbekende coin.")
+    with _jobs_lock:
+        if any(x["status"]=="running" for x in _jobs.values()):raise HTTPException(409,"Er loopt al een onderzoek. Wacht tot het klaar is.")
+        if len(_jobs)>=20:_jobs.pop(next(iter(_jobs)))
+        job_id=uuid.uuid4().hex
+        _jobs[job_id]={"id":job_id,"status":"running","message":"Onderzoek gestart."}
+    _pool.submit(execute_job,job_id,request)
+    return {"id":job_id}
+
+@app.get("/api/research/jobs/{job_id}")
+def job_status(job_id:str):
+    with _jobs_lock:
+        if job_id not in _jobs:raise HTTPException(404,"Taak niet gevonden; mogelijk is de server herstart. Eerdere resultaten staan bij Opgeslagen onderzoeken.")
+        return dict(_jobs[job_id])
 
