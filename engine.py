@@ -33,6 +33,9 @@ class PaperEngine:
             raise ValueError("Volume-breakout vereist echt candlevolume; CoinGecko OHLC heeft dat niet.")
         if capital<=0 or not(0<=fee<=.01) or not(0<=slip<=.02):raise ValueError("Ongeldige parameters")
         self.parameters=config(parameters)
+        if strategy=="pullback":
+            self.parameters=config(dict(self.parameters.model_dump(),ema_fast=20,ema_slow=50,trend_filter=True,
+                                        cooldown_bars=12,stop_atr=2.5,target_atr=5.,max_holding_bars=30))
         self.d=add_indicators(candles,self.parameters)
         self.rows=list(self.d.itertuples(index=False))
         self.entry_signals,self.exit_signals=signals(self.d,strategy)
@@ -111,7 +114,7 @@ class PaperEngine:
                                qty*fill if side=="short" else 0.,0.,qty*unit_loss)
         self.position.entry_slippage=abs(fill-raw_open)*qty
         p=self.parameters
-        rule=(f"EMA {p.ema_fast}/{p.ema_slow}-kruising" if self.strategy=="ema" else
+        rule=("Trend-pullback v1: EMA20-herovering in EMA50/200-trend" if self.strategy=="pullback" else f"EMA {p.ema_fast}/{p.ema_slow}-kruising" if self.strategy=="ema" else
               f"RSI {p.rsi_period} kruist {p.rsi_entry if side=='long' else 100-p.rsi_entry}" if self.strategy=="rsi" else
               f"Uitbraak over {p.breakout_period} vorige candles met volumefactor {p.volume_multiple}")
         self.position.entry_reason=f"{side.upper()}: {rule}. Signaal vorige gesloten candle; uitvoering op volgende open."
@@ -152,6 +155,8 @@ class PaperEngine:
             if self.position and i>0:
                 leave=self.exit_signals[i-1] if self.position.side=="long" else self.short_exit_signals[i-1]
                 if leave:self._close(stamp,float(row.open),"Strategie exit vorige candle")
+            if self.position and self.parameters.max_holding_bars and self.position.held_bars>=self.parameters.max_holding_bars:
+                self._close(stamp,float(row.open),"Maximale positieduur")
             eq=self.update_risk(float(row.open))
             daily_block=eq<self.start_day_equity*(1-MAX_DAILY_LOSS)
             long_signal=bool(i>0 and self.entry_signals[i-1] and self.parameters.trade_mode in ("long","both"))

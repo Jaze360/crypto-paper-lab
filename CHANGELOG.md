@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.10.0
+- Vast trend-pullbackprotocol naast drie bevroren referenties op BTC, ETH en SOL, met gemeenschappelijke datagrenzen.
+- Vier gescheiden perioden en drie kostenscenario's, elk met dubbele kosten, opgeslagen vingerafdrukken en expliciete datafouten.
+- Periode- en kostenkeuze, CSV-export en volledige verliesanalyse per combinatie.
+- Officiële kostensources voor Binance, Kraken en Coinbase International met expliciet onvolledig shortkostenmodel.
+- Maximaal dertig actieve candles voor de vaste hypothese; bestaande strategieën en replays behouden standaard geen tijdslimiet.
+- 107 tests geslaagd; nieuwe tests dekken vaste referenties, eerdere-candle-signalen, shortspiegeling, tijdsexit, scenario's en opslag.
+
 ## 0.9.0
 - Begrensde automatische parameterselectie: maximaal twaalf varianten, ontwikkeling, twee validatievensters en laatste test.
 - Expliciete afwijzingen en kostenstress; geen instellingsovername als niemand voldoet.

@@ -17,6 +17,7 @@ from strategies import STRATEGIES, StrategyConfig
 import storage
 from secrets_store import get_key, save_key
 import updater
+from protocol import protocol_coin,COHORT,reference_params
 from research import auto_tune,filter_experiment,bot_arena,research, walk_forward
 
 BASE = Path(__file__).parent
@@ -268,7 +269,7 @@ _jobs_lock=RLock()
 class ResearchJob(BaseModel):
     model_config=ConfigDict(extra="forbid")
     params:Params=Field(default_factory=Params)
-    mode:Literal["compare","walkforward","batch","arena","filters","tune"]="walkforward"
+    mode:Literal["compare","walkforward","batch","arena","filters","tune","protocol"]="walkforward"
     coins:list[str]=Field(default_factory=list,max_length=4)
 
 def execute_job(job_id,request):
@@ -281,6 +282,30 @@ def execute_job(job_id,request):
             progress("Strategieën vergelijken.")
             payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters)}
             kind="research"
+        elif request.mode=="protocol":
+            p=p.model_copy(update={"source":"historical","days":1095,"interval":240,"strategy":"ema",
+                                   "parameters":StrategyConfig(**reference_params(p.parameters.short_borrow_daily_pct)),"dataset_id":None})
+            request.params=p
+            datasets={};errors={};results=[]
+            for coin in COHORT:
+                item=p.model_copy(update={"coin":coin})
+                try:datasets[coin]=get_data(item,lambda m:progress(coin+": "+m))
+                except (ValueError,DataError) as exc:errors[coin]=str(exc)
+            common_left=max((d.time.min() for d in datasets.values()),default=None)
+            common_right=min((d.time.max() for d in datasets.values()),default=None)
+            for coin in COHORT:
+                if coin in errors:
+                    results.append({"coin":coin,"error":errors[coin]});continue
+                item=p.model_copy(update={"coin":coin});df=datasets[coin]
+                df=df[(df.time>=common_left)&(df.time<=common_right)].reset_index(drop=True)
+                try:
+                    result=protocol_coin(df,item.capital,item.fee_pct,item.slippage_pct,item.parameters.short_borrow_daily_pct,lambda m:progress(coin+": "+m))
+                    result["notes"].append("Beschikbare coins zijn begrensd tot dezelfde begin- en eindtijd. Gaten kunnen aantallen en exacte splits nog laten verschillen.")
+                    results.append({"coin":coin,"meta":summary(df,item),"protocol":result})
+                except (ValueError,DataError) as exc:results.append({"coin":coin,"error":str(exc)})
+            if not any("protocol" in x for x in results):raise ValueError("Geen coin kon worden getest: "+"; ".join(x["coin"]+": "+x["error"] for x in results))
+            payload={"protocol_batch":results,"params":p.model_dump()}
+            kind="protocol"
         elif request.mode=="tune":
             df=get_data(p,progress)
             payload={"meta":summary(df,p),"tuning":auto_tune(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters,progress),"params":p.model_dump()}

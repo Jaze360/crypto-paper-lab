@@ -1,6 +1,16 @@
-# Crypto Paper Lab — v0.9
+# Crypto Paper Lab — v0.10
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.10: vaste hypothese en kostenonderzoek
+
+Kies **Nieuwe hypothese · BTC / ETH / SOL** bij het onderzoekstype. Het protocol gebruikt drie jaar publieke Binance-spotcandles van vier uur, op dezelfde beschikbare begin- en einddatum voor de drie coins. De bestaande EMA-, RSI- en breakoutregels worden als vaste referenties vergeleken met één vooraf beschreven trend-pullbackhypothese. De regels staan in [Hypothese v1](HYPOTHESE_V1.md): EMA20/50/200, ATR-stop/target 2,5×/5×, maximaal dertig actieve candles en twaalf candles wachttijd. LONG en SHORT, zonder hefboom of echte orders.
+
+De eerste 60% is ontwikkelcontext, daarna volgen twee vensters van 10% en een laatste periode van 20%. Iedere combinatie herstart fictief kapitaal. Eerder bekeken historische data gelden niet als ongezien bewijs. Er is geen optimalisatie of automatische winnaarselectie. Kosten, verliesanalyse, bron- en codevingerafdrukken, fouten en alle uitkomsten worden opgeslagen. Kies periode en kostenscenario; **Analyse** opent de long-/shortdetails. CSV bevat alle perioden en scenario's.
+
+Naast het huidige ingestelde kostenmodel worden fees van 0,05% en 0,04% per zijde getest, met dezelfde ingestelde slippage en vaste shortleenproxy. Iedere combinatie krijgt dubbele kosten. De broncontrole maakt onderscheid tussen Binance, Kraken Futures en Coinbase International-producten. **Dit zijn feegevoeligheidsscenario's, geen volledige derivatenbeursbacktests.** De koersdata blijven spot; echte funding, basis, margin-openingskosten, liquidaties en account-/regiotoegang ontbreken. Het actuele Binance-accounttarief is niet bevestigd. Zie de gelinkte officiële bronnen en beperkingen in het protocol.
+
+Opgeslagen onderzoeken blijven beschikbaar. Bestaande Botarena-profielen, replays en standaardinstellingen veranderen niet. Een protocolrapport neemt geen instellingen automatisch over.
 
 ## Nieuw in v0.9: automatisch afstellen en dashboard
 

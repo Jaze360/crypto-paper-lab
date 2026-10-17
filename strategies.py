@@ -4,9 +4,11 @@ import pandas as pd
 from typing import Literal
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
-STRATEGIES={"ema":"EMA trendvolgend","rsi":"RSI herstel","breakout":"Breakout + candlevolume"}
+REFERENCE_STRATEGIES={"ema":"EMA trendvolgend","rsi":"RSI herstel","breakout":"Breakout + candlevolume"}
+STRATEGIES={**REFERENCE_STRATEGIES,"pullback":"Trend-pullback v1 (vast)"}
 class StrategyConfig(BaseModel):
     model_config=ConfigDict(extra="forbid")
+    max_holding_bars:int=Field(default=0,ge=0,le=500)
     trend_filter:bool=False
     cooldown_bars:int=Field(default=0,ge=0,le=100)
     trade_mode:Literal["long","short","both"]="long"
@@ -54,11 +56,15 @@ def signals(df,strategy):
     elif strategy=="rsi":
         enter=(df.rsi.shift()<p.rsi_entry)&(df.rsi>=p.rsi_entry)
         leave=df.rsi>=p.rsi_exit
+    elif strategy=="pullback":
+        enter=(df.close>df.trend_ema)&(df.ema_slow>df.trend_ema)&(df.trend_slope>0)&(df.close.shift()<=df.ema_fast.shift())&(df.close>df.ema_fast)
+        leave=df.close<df.ema_slow
     elif strategy=="breakout":
         enter=(df.close>df.prior_high20)&(df.volume>p.volume_multiple*df.vol_mean20)&(df.close.shift()<=df.prior_high20.shift())
         leave=df.close<df.ema_fast
     else:raise ValueError("Onbekende strategie")
     warmup=max(22,p.ema_slow if strategy=="ema" else p.rsi_period+1 if strategy=="rsi" else max(p.ema_fast,p.breakout_period+1))
+    if strategy=="pullback":warmup=220
     enter=enter.fillna(False).to_numpy(dtype=bool);leave=leave.fillna(False).to_numpy(dtype=bool)
     enter[:warmup]=False;leave[:warmup]=False
     return enter,leave
@@ -76,11 +82,15 @@ def short_signals(df,strategy):
     elif strategy=="rsi":
         enter=(df.rsi.shift()>100-p.rsi_entry)&(df.rsi<=100-p.rsi_entry)
         leave=df.rsi<=100-p.rsi_exit
+    elif strategy=="pullback":
+        enter=(df.close<df.trend_ema)&(df.ema_slow<df.trend_ema)&(df.trend_slope<0)&(df.close.shift()>=df.ema_fast.shift())&(df.close<df.ema_fast)
+        leave=df.close>df.ema_slow
     elif strategy=="breakout":
         enter=(df.close<df.prior_low20)&(df.volume>p.volume_multiple*df.vol_mean20)&(df.close.shift()>=df.prior_low20.shift())
         leave=df.close>df.ema_fast
     else:raise ValueError("Onbekende strategie")
     warmup=max(22,p.ema_slow if strategy=="ema" else p.rsi_period+1 if strategy=="rsi" else max(p.ema_fast,p.breakout_period+1))
+    if strategy=="pullback":warmup=220
     enter=enter.fillna(False).to_numpy(dtype=bool);leave=leave.fillna(False).to_numpy(dtype=bool)
     enter[:warmup]=False;leave[:warmup]=False
     return enter,leave

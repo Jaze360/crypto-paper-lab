@@ -1,7 +1,7 @@
 """Fixed-rule comparisons and chronological parameter selection, with final holdout."""
 import numpy as np
 from engine import PaperEngine, run_backtest
-from strategies import STRATEGIES,config
+from strategies import STRATEGIES,REFERENCE_STRATEGIES,config
 
 def benchmark(df,capital,fee,slip,start,end,exposure=1.):
     part=df.iloc[start:end]
@@ -25,7 +25,7 @@ def research(df,capital,fee,slip,parameters=None):
     n=len(df)
     if n<120:raise ValueError("Vergelijking vereist minimaal 120 gesloten candles.")
     p=config(parameters).model_dump();cut=round(n*.7);rows=[]
-    for strategy,label in STRATEGIES.items():
+    for strategy,label in REFERENCE_STRATEGIES.items():
         if strategy=="breakout" and not df.attrs.get("volume_is_actual"):
             rows.append({"strategy":strategy,"label":label,"skipped":"Geen echt candlevolume."});continue
         train=run(df,strategy,capital,fee,slip,0,cut,p)
@@ -54,6 +54,7 @@ def research(df,capital,fee,slip,parameters=None):
                      "Meerdere tests en weinig trades beperken conclusies."]}
 
 def candidates(strategy,parameters):
+    if strategy=="pullback":raise ValueError("Trend-pullback v1 is een vaste hypothese en wordt niet geoptimaliseerd.")
     base=config(parameters).model_dump();result=[base]
     changes={"ema":[{"ema_fast":5,"ema_slow":20},{"ema_fast":12,"ema_slow":50},{"ema_fast":20,"ema_slow":100}],
              "rsi":[{"rsi_entry":25,"rsi_exit":55},{"rsi_entry":35,"rsi_exit":60},{"rsi_period":21,"rsi_entry":30,"rsi_exit":55}],
