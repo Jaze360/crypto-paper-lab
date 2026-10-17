@@ -96,6 +96,14 @@ def archive_files(raw):
         version = json.loads(result["version.json"])
         if version.get("paper_only") is not True:
             raise ValueError("Update is niet als paper-only gemarkeerd.")
+        release=version.get("version","")
+        if not isinstance(release,str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",release):
+            raise ValueError("Ongeldige updateversie.")
+        if tuple(map(int,release.split(".")))>=(0,13,0):
+            required={"simple_lab.py","protocol.py","universe.py","cartridges.py","cartridge_api.py",
+                      "cartridge_ema.py","cartridge_rsi.py","cartridge_breakout.py","cartridge_pullback.py",
+                      "static/lab.html","static/lab.js","static/lab.css"}
+            if not required.issubset(result):raise ValueError("Update mist bestanden voor het cartridgelab.")
         return result
 
 def stage():

@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.13.0
+- Nieuw hoofdscherm: alleen cartridge kiezen en de vaste test starten.
+- Eén geselecteerde cartridge, drie kalenderjaren met gesloten uurcandles en tien coins.
+- Gedeelde vaste eindtijd; geen kortere test of opvulling bij ontbrekende historie.
+- Compact overzicht per coin, automatische periodecontrole en details op verzoek.
+- Resultaten automatisch bewaard; oude bediening en onderzoeken in apart archief.
+- Updater controleert de nieuwe hoofdschermbestanden. Geen live orders toegevoegd.
+
 ## 0.12.0
 - Standaardonderzoek op actuele top tien of vijf volgens gelijke weging van cap- en volumerang binnen de eerste honderd coins op marketcap.
 - Stablecoins en verpakte/gestakete varianten gefilterd; volledige selectiesnapshot, uitsluitingen en bronvelden bewaard.

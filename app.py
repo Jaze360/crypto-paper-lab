@@ -96,11 +96,15 @@ def summary(df,p):
 
 @app.get("/")
 def index():
+    return FileResponse(BASE/"static/lab.html",headers={"Cache-Control":"no-store"})
+
+@app.get("/archief")
+def archive_ui():
     return FileResponse(BASE/"static/index.html",headers={"Cache-Control":"no-store"})
 
 @app.get("/static/{filename}")
 def static(filename:str):
-    if filename not in {"app.js","style.css"}: raise HTTPException(404)
+    if filename not in {"app.js","style.css","lab.js","lab.css"}: raise HTTPException(404)
     return FileResponse(BASE/"static"/filename,headers={"Cache-Control":"no-store"})
 
 @app.get("/api/status")
@@ -401,6 +405,46 @@ def job_status(job_id:str):
     with _jobs_lock:
         if job_id not in _jobs:raise HTTPException(404,"Taak niet gevonden; mogelijk is de server herstart. Eerdere resultaten staan bij Opgeslagen onderzoeken.")
         return dict(_jobs[job_id])
+
+
+# The primary screen has a single choice: a built-in cartridge. Test settings are server-owned.
+from simple_lab import run_test as run_cartridge_test
+
+class CartridgeTest(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    cartridge:str=Field(pattern="^[a-z][a-z0-9_]{0,39}$")
+    @field_validator("cartridge")
+    @classmethod
+    def known_cartridge(cls,value):
+        get_cartridge(value)
+        return value
+
+def execute_cartridge_test(job_id,cartridge):
+    def progress(message):
+        with _jobs_lock:_jobs[job_id]["message"]=message
+    try:
+        payload=run_cartridge_test(cartridge,progress)
+        plan=payload["plan"]
+        params={"strategy":cartridge,"source":"historical","days":plan["days"],"interval":60,"capital":10000,
+                "fee_pct":.1,"slippage_pct":.05,"parameters":plan["parameters"]}
+        run_id=storage.save_run("cartridge_test",params,payload)
+        with _jobs_lock:_jobs[job_id].update(status="done",message="Test bewaard.",run_id=run_id)
+    except Exception as exc:
+        with _jobs_lock:_jobs[job_id].update(status="failed",message=str(exc) if isinstance(exc,(ValueError,DataError)) else "Test mislukt. Controleer de databron en servermelding.")
+
+@app.post("/api/lab/start")
+def start_cartridge_test(request:CartridgeTest):
+    with _jobs_lock:
+        if any(x["status"]=="running" for x in _jobs.values()):raise HTTPException(409,"Er loopt al een test. Wacht tot die klaar is.")
+        if len(_jobs)>=20:_jobs.pop(next(iter(_jobs)))
+        job_id=uuid.uuid4().hex
+        _jobs[job_id]={"id":job_id,"status":"running","message":"Test gestart."}
+    _pool.submit(execute_cartridge_test,job_id,request.cartridge)
+    return {"id":job_id}
+
+@app.get("/api/lab/runs")
+def cartridge_runs():
+    return [x for x in storage.list_runs() if x["kind"]=="cartridge_test"]
 
 
 

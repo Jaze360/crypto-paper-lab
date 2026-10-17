@@ -237,11 +237,14 @@ BINANCE_SYMBOLS.update({"binancecoin":"BNBUSDT","tron":"TRXUSDT","zcash":"ZECUSD
 
 class HistoricalProvider:
     """Paginated public OHLCV. Dedicated data-only domain; no credentials or trading routes."""
-    def candles(self,coin="bitcoin",days=1095,interval=240,progress=None):
+    def candles(self,coin="bitcoin",days=1095,interval=240,progress=None,end_ms=None):
         from storage import cache_get,cache_put
         if coin not in BINANCE_SYMBOLS or interval not in (60,240,1440) or not 7<=days<=1825:
             raise DataError("Historie vereist een bekende coin, 1u/4u/1d en maximaal vijf jaar.")
-        end=int(pd.Timestamp.now(tz="UTC").floor(f"{interval}min").timestamp()*1000)-1
+        latest=int(pd.Timestamp.now(tz="UTC").floor(f"{interval}min").timestamp()*1000)-1
+        end=latest if end_ms is None else end_ms
+        if not isinstance(end,int) or isinstance(end,bool) or end>latest or (end+1)%(interval*60_000):
+            raise DataError("Ongeldige eindtijd voor gesloten candles.")
         step=interval*60_000
         start=end+1-days*86_400_000
         key=f"historical-v1:{coin}:{days}:{interval}:{end//3_600_000}"
