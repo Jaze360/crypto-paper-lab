@@ -1,0 +1,31 @@
+const $=id=>document.getElementById(id);
+const set=(id,value)=>{$(id).textContent=value};
+const asMoney=n=>n==null?'—':new Intl.NumberFormat('nl-BE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const pct=n=>n==null?'—':`${n>=0?'+':''}${asMoney(n)}%`;
+const params=()=>({source:$('source').value,coin:$('coin').value,strategy:$('strategy').value,days:Number($('days').value),capital:Number($('capital').value),fee_pct:Number($('fee_pct').value),slippage_pct:Number($('slippage_pct').value)});
+const setStatus=(s,err=false)=>{set('status',s);$('status').style.color=err?'#f48f94':''};
+async function post(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let j=await r.json();if(!r.ok)throw Error(typeof j.detail==='string'?j.detail:JSON.stringify(j.detail));return j;}
+function chart(id,items,key){const svg=$(id);while(svg.firstChild)svg.removeChild(svg.firstChild);if(!items?.length)return;
+const values=items.map(x=>Number(x[key])).filter(Number.isFinite);if(values.length<2)return;const low=Math.min(...values),high=Math.max(...values),extent=(high-low)||Math.max(1,high*.01),min=low-extent*.12,max=high+extent*.12;
+const ns='http://www.w3.org/2000/svg';const node=(tag,props)=>{let e=document.createElementNS(ns,tag);Object.entries(props).forEach(([k,v])=>e.setAttribute(k,v));svg.appendChild(e);return e};
+for(let i=0;i<4;i++){let y=25+i*(190/3);node('line',{x1:25,y1:y,x2:794,y2:y,class:'gridline'});let t=node('text',{x:28,y:y-4});t.textContent=asMoney(max-(max-min)*(y-25)/190)}
+const points=items.map((x,i)=>{const v=Number(x[key]);return `${(25+(i/(items.length-1))*769).toFixed(2)},${(215-(v-min)/(max-min)*190).toFixed(2)}`}).join(' ');
+node('polyline',{points,class:'line'});
+}
+function metrics(s,segment='TEST'){const m=s.metrics;set('ret',pct(s.return_pct));set('dd',pct(-s.max_drawdown_pct));set('trades',String(m.trades));set('exp',m.expectancy_R==null?'—':String(m.expectancy_R)+' R');set('retHint',segment+' · alleen simulatie'); $('ret').className=s.return_pct>=0?'positive':'negative';}
+function rows(trades){const b=$('journal');b.replaceChildren();if(!trades?.length){const tr=b.insertRow(),td=tr.insertCell();td.colSpan=4;td.className='empty';td.textContent='Nog geen afgesloten transacties';return;}
+trades.slice(-25).reverse().forEach(t=>{let tr=b.insertRow();[t.entry_time?.slice(0,16).replace('T',' '),t.exit_time?.slice(0,16).replace('T',' '),`${t.pnl>=0?'+':''}${asMoney(t.pnl)} $`,t.reason].forEach((val,i)=>{let td=tr.insertCell();td.textContent=val;if(i===2)td.className=t.pnl>=0?'positive':'negative'})});}
+function drawStatus(j,mode){set('sourceBadge','BRON: '+j.meta.source);set('dataQuality',j.meta.volume_is_actual?'VOLUME: DEMO-OHLCV':'VOLUME: ONTBREEKT');set('chartTitle',j.meta.coin.toUpperCase()+' · koerscandles');set('chartDesc',j.meta.candle_count+' candles · '+j.meta.from.slice(0,10)+' tot '+j.meta.to.slice(0,10));chart('priceChart',j.meta.price_data,'close');setStatus(mode+' · '+j.meta.source);}
+function segmentRow(title,r){let m=r.metrics;return `<tr><td>${title}</td><td>${m.trades}</td><td>${pct(r.return_pct)}</td><td>${m.winrate_pct==null?'—':asMoney(m.winrate_pct)+'%'}</td><td>${m.profit_factor??'—'}</td></tr>`;}
+function segments(train,test){const b=$('segments');b.replaceChildren();[['Ontwikkeling (70%)',train],['Onaangeroerde test (30%)',test]].forEach(([label,r])=>{let tr=b.insertRow();[label,r.metrics.trades,pct(r.return_pct),r.metrics.winrate_pct==null?'—':asMoney(r.metrics.winrate_pct)+'%',r.metrics.profit_factor==null?'—':String(r.metrics.profit_factor)].forEach(v=>tr.insertCell().textContent=v)})}
+function setLoading(loading){$('btnBacktest').disabled=loading;$('btnReplay').disabled=loading;if(loading)setStatus('Data laden en berekenen…')}
+$('btnBacktest').addEventListener('click',async()=>{setLoading(true);try{let j=await post('/api/backtest',params());drawStatus(j,'Backtest gereed');segments(j.backtest.train,j.backtest.test);metrics(j.backtest.test);chart('equityChart',j.backtest.test.equity_curve,'equity');rows(j.backtest.test.trades);const warnings=$('warnings');warnings.replaceChildren();j.backtest.warnings.forEach(w=>{let p=document.createElement('p');p.textContent='• '+w;warnings.appendChild(p)})}catch(e){setStatus('Fout: '+e.message,true)}finally{setLoading(false)}});
+$('btnReplay').addEventListener('click',async()=>{setLoading(true);try{let j=await post('/api/replay/start',params());drawStatus(j,'Historische replay gestart');replayFinished=false;$('btnStep').disabled=false;$('btn25').disabled=false;$('warnings').replaceChildren();$('segments').replaceChildren();set('replayState',j.mode_note);renderReplay(j.snapshot)}catch(e){setStatus('Fout: '+e.message,true)}finally{setLoading(false)}});
+function renderReplay(s){metrics(s,'REPLAY');chart('equityChart',s.equity_curve,'equity');rows(s.trades);set('replayProgress',`${s.progress}/${s.total} candles`);set('replayState',`Fictief equity: $ ${asMoney(s.equity)} · Cash: $ ${asMoney(s.cash)} · Open positie: ${s.open_position?'ja':'nee'} · Entry-stop: ${s.locked?'GEBLOKKEERD':'nee'}`);if(s.completed){$('btnStep').disabled=true;$('btn25').disabled=true}}
+let replayFinished=false;
+async function step(n){$('btnStep').disabled=true;$('btn25').disabled=true;try{const j=await post('/api/replay/step',{steps:n});renderReplay(j.snapshot);replayFinished=j.snapshot.completed;setStatus('Historische replay — '+j.snapshot.progress+' candles verwerkt')}catch(e){setStatus('Fout: '+e.message,true)}finally{if(!replayFinished){$('btnStep').disabled=false;$('btn25').disabled=false}}}
+$('btnStep').addEventListener('click',()=>step(1));$('btn25').addEventListener('click',()=>step(25));
+$('btnExportReplay').addEventListener('click',()=>window.location.assign('/api/export/replay'));
+$('btnExportBacktest').addEventListener('click',()=>window.location.assign('/api/export/backtest'));
+$('source').addEventListener('change',()=>set('sourceBadge','BRON: '+$('source').value.toUpperCase()));
+fetch('/api/status').then(x=>x.json()).then(j=>{setStatus(j.coingecko_configured?'Klaar · CoinGecko-sleutel geconfigureerd':'Klaar · CoinGecko-sleutel nog niet ingesteld')}).catch(()=>setStatus('Backend niet bereikbaar',true));
