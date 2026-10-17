@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from market_data import (CoinGeckoProvider, KrakenProvider, HistoricalProvider, demo_candles, DataError,
                          COINS, pack_candles, unpack_candles, import_csv)
-from engine import PaperEngine, run_backtest
+from engine import PaperEngine, run_backtest, direction_breakdown
 from strategies import STRATEGIES, StrategyConfig
 import storage
 from secrets_store import get_key, save_key
@@ -202,6 +202,13 @@ def find_run(run_id):
 @app.get("/api/runs/{run_id}")
 def run_detail(run_id:str):
     row=find_run(run_id)
+    # Enrich legacy runs only when their actual trade journals were retained.
+    payload=row["payload"]
+    capital=float(row["params"].get("capital",10000))
+    snapshots=list(payload.get("backtest",{}).values()) if row["kind"]=="backtest" else [payload.get("snapshot",{})] if row["kind"]=="replay" else []
+    for snap in snapshots:
+        if isinstance(snap,dict) and "trades" in snap and "metrics" in snap:
+            snap["metrics"].setdefault("direction_breakdown",direction_breakdown(snap["trades"],capital))
     # Candle archive needed for replay internally, not for displaying old results.
     row["payload"].pop("candles",None)
     return row
@@ -318,6 +325,7 @@ def job_status(job_id:str):
     with _jobs_lock:
         if job_id not in _jobs:raise HTTPException(404,"Taak niet gevonden; mogelijk is de server herstart. Eerdere resultaten staan bij Opgeslagen onderzoeken.")
         return dict(_jobs[job_id])
+
 
 
 

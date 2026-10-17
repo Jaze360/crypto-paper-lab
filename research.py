@@ -38,7 +38,7 @@ def research(df,capital,fee,slip,parameters=None):
                           **result["metrics"]})
         stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),cut,n,stress_parameters(p))
         rows.append({"strategy":strategy,"label":label,"parameters":p,"train":train["metrics"],
-                     "test":test["metrics"],"folds":folds,"cost_stress_return_pct":stress["return_pct"],
+                     "test":test["metrics"],"folds":folds,"cost_stress_return_pct":stress["return_pct"],"cost_stress":stress["metrics"],
                      "warnings":[f"{name}: slechts {r['metrics']['trades']} transacties; onvoldoende bewijs."
                                  for name,r in (("train",train),("test",test)) if r["metrics"]["trades"]<30]})
     return {"strategies":rows,"benchmark":benchmark(df,capital,fee,slip,cut,n),
@@ -114,4 +114,5 @@ def walk_forward(df,strategy,capital,fee,slip,parameters=None,progress=None):
                      "Minder dan 30 testtrades blijft onvoldoende bewijs, ook na parameterselectie.",
                      "Handelsrichting blijft vast tijdens parameterkeuze. Shortleenkosten worden meegenomen; stress verdubbelt ze.",
                      "Benchmarks zijn long kopen-en-vasthouden; shorts zijn een vereenvoudigd onderpandmodel zonder echte margin-liquidatie."]}
+
 

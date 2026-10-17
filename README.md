@@ -1,6 +1,14 @@
-# Crypto Paper Lab — v0.4
+# Crypto Paper Lab — v0.5
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.5: long-/shortuitsplitsing
+
+Per onderzoeksperiode toont het dashboard gesloten trades afzonderlijk voor LONG en SHORT: bruto resultaat vóór kosten, slippage, handelskosten, shortleenkosten, netto P&L, bijdrage aan het volledige startkapitaal en winrate. Een tweede tabel groepeert de werkelijke exitredenen per richting. Beide tabellen zijn samen als CSV te exporteren.
+
+Kies de periode boven de tabel: backtest, replay, strategievergelijking, walk-forwardvenster of laatste test, inclusief beschikbare kostenstressvarianten. Open posities vallen buiten deze uitsplitsing. Slippage zit al in uitvoeringsprijzen en wordt niet opnieuw afgetrokken. De handelsregels en parameterselectie veranderen niet.
+
+Oude backtests/replays met een journal krijgen de beschikbare uitsplitsing bij openen; onbekende historische slippage blijft leeg. Voor oude vergelijkingen/walk-forwardrapporten zonder tradejournal voer je het onderzoek opnieuw uit. Bestaande resultaten worden niet overschreven.
 
 ## Nieuw in v0.4: paper-shorts
 

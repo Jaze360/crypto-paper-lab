@@ -23,6 +23,7 @@ class Position:
     borrow_paid:float=0.
     planned_risk:float=0.
     held_bars:int=0
+    entry_slippage:float=0.
 
 class PaperEngine:
     def __init__(self,candles,strategy="ema",capital=10000.,fee=.001,slip=.0005,start=0,end=None,parameters=None):
@@ -70,7 +71,9 @@ class PaperEngine:
         risk=p.planned_risk or (abs(p.entry-p.stop)*p.qty+p.fee_paid)
         trade={"entry_time":p.entry_time,"exit_time":stamp,"side":p.side,
                "entry":round(p.entry,6),"exit":round(fill,6),"qty":round(p.qty,8),
-               "pnl":round(net,4),"pnl_R":round(net/max(1e-9,risk),3),
+               "pnl":round(net,4),"gross_pnl":round(gross,6),
+               "slippage_cost":round(p.entry_slippage+abs(fill-raw)*p.qty,6),
+               "gross_before_slippage":round(gross+p.entry_slippage+abs(fill-raw)*p.qty,6),"pnl_R":round(net/max(1e-9,risk),3),
                "fees":round(fee+p.fee_paid,4),"borrow_cost":round(p.borrow_paid,6),
                "holding_bars":p.held_bars,"reason":reason,"strategy":self.strategy}
         self.holding_bars.append(p.held_bars)
@@ -101,6 +104,7 @@ class PaperEngine:
         self.cash-=qty*fill+fee
         self.position=Position(stamp,fill,qty,stop,target,fee,i-1,side,
                                qty*fill if side=="short" else 0.,0.,qty*unit_loss)
+        self.position.entry_slippage=abs(fill-raw_open)*qty
         self.events.append({"type":("BUY LONG" if side=="long" else "OPEN SHORT")+" (PAPER)",
                             "time":stamp,"price":fill,"reason":"Signaal vorige gesloten candle"})
 
@@ -184,7 +188,7 @@ class PaperEngine:
 def metrics(trades,capital,equity,max_dd):
     profits=[float(t["pnl"]) for t in trades];wins=[p for p in profits if p>0];losses=[p for p in profits if p<0]
     n=len(trades);sum_l=-sum(losses)
-    return {"trades":n,"long_trades":sum(t.get("side","long")=="long" for t in trades),
+    return {"direction_breakdown":direction_breakdown(trades,capital),"trades":n,"long_trades":sum(t.get("side","long")=="long" for t in trades),
             "short_trades":sum(t.get("side")=="short" for t in trades),
             "winrate_pct":round(100*len(wins)/n,2) if n else None,
             "avg_net_pnl":round(sum(profits)/n,2) if n else None,
@@ -206,3 +210,38 @@ def run_backtest(candles,strategy="ema",capital=10000,fee=.001,slip=.0005,split=
                      "Shorts: 100% notional als onderpand, vaste leenkosten, geen echte margin/funding/liquidatie. Gaps en langere looptijd kunnen gepland risico overschrijden."])
     return {"train":train,"test":test,"split_index":cut,"total_candles":n,"warnings":warnings}
 
+
+
+def direction_breakdown(trades,capital):
+    """Contributions of closed trades, not standalone directional strategy returns.
+    Slippage is already in fill P&L; adding it back constructs the pre-cost gross.
+    Missing legacy slippage stays unknown, never zero.
+    """
+    def summarize(items):
+        count=len(items)
+        net=sum(float(t["pnl"]) for t in items)
+        commissions=sum(float(t.get("fees",0)) for t in items)
+        borrow=sum(float(t.get("borrow_cost",0)) for t in items)
+        known=all("slippage_cost" in t for t in items)
+        slip=sum(float(t["slippage_cost"]) for t in items) if known else None
+        gross_fill=sum(float(t.get("gross_pnl",float(t["pnl"])+float(t.get("fees",0))+float(t.get("borrow_cost",0)))) for t in items)
+        wins=sum(float(t["pnl"])>0 for t in items)
+        positive=sum(max(0.,float(t["pnl"])) for t in items)
+        negative=-sum(min(0.,float(t["pnl"])) for t in items)
+        return {"trades":count,"net_pnl":round(net,6),"contribution_pct":round(net/capital*100,4),
+                "gross_after_slippage":round(gross_fill,6),
+                "gross_before_costs":round(gross_fill+slip,6) if known else None,
+                "commissions":round(commissions,6),"borrow_cost":round(borrow,6),
+                "slippage_cost":round(slip,6) if known else None,
+                "total_costs":round(commissions+borrow+slip,6) if known else None,
+                "winrate_pct":round(100*wins/count,2) if count else None,
+                "profit_factor":round(positive/negative,3) if negative else None}
+    sides={}
+    exits=[]
+    for side in ("long","short"):
+        items=[t for t in trades if t.get("side","long")==side]
+        sides[side]=summarize(items)
+        for reason in sorted({t.get("reason","Onbekend") for t in items}):
+            exits.append({"side":side,"reason":reason,**summarize([t for t in items if t.get("reason","Onbekend")==reason])})
+    return {"sides":sides,"exits":exits,"scope":"closed_trades","capital":capital,
+            "note":"Bijdrage = netto gesloten-trade-P&L / volledig startkapitaal. Geen afzonderlijk long- of shortaccount. Slippage is al in uitvoeringsprijzen verwerkt; niet nogmaals van netto aftrekken. Open posities zijn uitgesloten."}

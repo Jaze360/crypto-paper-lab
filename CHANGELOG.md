@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## 0.5.0
+- Gesloten-traderesultaten uitgesplitst naar LONG/SHORT en exitreden.
+- Bruto vóór kosten, slippage, commissies, shortleenkosten en netto bijdrage apart zichtbaar.
+- Periodekeuze en CSV-export bij backtest, replay, vergelijking en walk-forward.
+- Bestaande journals leesbaar zonder geschatte historische slippage of herberekening.
+- Handelsregels en paper-only-grenzen behouden; 83 tests geslaagd.
+
 ## 0.4.0
 - Paper LONG, SHORT of beide richtingen, met één positie tegelijk.
 - Gespiegelde EMA-/RSI- en volume-breakdownsignalen voor shorts.
