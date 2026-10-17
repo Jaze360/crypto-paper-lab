@@ -1,11 +1,14 @@
 """Lagged indicators and bounded, explicit strategy parameters."""
 import numpy as np
 import pandas as pd
+from typing import Literal
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 STRATEGIES={"ema":"EMA trendvolgend","rsi":"RSI herstel","breakout":"Breakout + candlevolume"}
 class StrategyConfig(BaseModel):
     model_config=ConfigDict(extra="forbid")
+    trade_mode:Literal["long","short","both"]="long"
+    short_borrow_daily_pct:float=Field(default=.02,ge=0,le=1,allow_inf_nan=False)
     ema_fast:int=Field(default=8,ge=3,le=100)
     ema_slow:int=Field(default=21,ge=5,le=250)
     rsi_period:int=Field(default=14,ge=5,le=50)
@@ -35,6 +38,7 @@ def add_indicators(candles, parameters=None):
     tr=pd.concat([d.high-d.low,(d.high-close.shift()).abs(),(d.low-close.shift()).abs()],axis=1).max(axis=1)
     d["atr"]=tr.ewm(alpha=1/14,adjust=False,min_periods=14).mean()
     d["prior_high20"]=d.high.shift().rolling(p.breakout_period,min_periods=p.breakout_period).max()
+    d["prior_low20"]=d.low.shift().rolling(p.breakout_period,min_periods=p.breakout_period).min()
     d["vol_mean20"]=d.volume.shift().rolling(p.breakout_period,min_periods=p.breakout_period).mean()
     d.attrs.update(candles.attrs);d.attrs["strategy_config"]=p.model_dump()
     return d
@@ -58,3 +62,21 @@ def signal(df,i,strategy):
     if i<0 or i>=len(df):return False,False
     enter,leave=signals(df,strategy)
     return bool(enter[i]),bool(leave[i])
+
+
+def short_signals(df,strategy):
+    p=config(df.attrs.get("strategy_config"))
+    if strategy=="ema":
+        enter=(df.ema_fast<df.ema_slow)&(df.ema_fast.shift()>=df.ema_slow.shift())
+        leave=df.ema_fast>df.ema_slow
+    elif strategy=="rsi":
+        enter=(df.rsi.shift()>100-p.rsi_entry)&(df.rsi<=100-p.rsi_entry)
+        leave=df.rsi<=100-p.rsi_exit
+    elif strategy=="breakout":
+        enter=(df.close<df.prior_low20)&(df.volume>p.volume_multiple*df.vol_mean20)&(df.close.shift()>=df.prior_low20.shift())
+        leave=df.close>df.ema_fast
+    else:raise ValueError("Onbekende strategie")
+    warmup=max(22,p.ema_slow if strategy=="ema" else p.rsi_period+1 if strategy=="rsi" else max(p.ema_fast,p.breakout_period+1))
+    enter=enter.fillna(False).to_numpy(dtype=bool);leave=leave.fillna(False).to_numpy(dtype=bool)
+    enter[:warmup]=False;leave[:warmup]=False
+    return enter,leave

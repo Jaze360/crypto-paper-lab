@@ -200,7 +200,7 @@ def test_intrabar_stop_cannot_trigger_retroactive_open_entry(monkeypatch):
     eng.rows[100]=eng.rows[100]._replace(low=float(row.open)*.9)
     eng.step(1)
     assert eng.position is None
-    assert not any(e["type"]=="BUY (PAPER)" for e in eng.events)
+    assert not any(e["type"]=="BUY LONG (PAPER)" for e in eng.events)
 
 def test_apply_failure_restores_all_original_code(tmp_path,monkeypatch):
     root=tmp_path/"installation";root.mkdir()
@@ -262,5 +262,6 @@ def test_public_updates_do_not_require_github_cli(monkeypatch):
     info=updater.check()
     assert info["latest"]=="a"*40
     assert calls==["https://api.github.com/repos/Jaze360/crypto-paper-lab/commits/main"]
+
 
 

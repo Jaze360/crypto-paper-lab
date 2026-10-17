@@ -77,7 +77,7 @@ def get_data(p,progress=None):
 
 def summary(df,p):
     gaps = df.time.diff().dropna()
-    return {"source":df.attrs.get("source"),"coin":p.coin,"strategy":p.strategy,
+    return {"source":df.attrs.get("source"),"coin":p.coin,"strategy":p.strategy,"trade_mode":p.parameters.trade_mode,
             "volume_is_actual":df.attrs.get("volume_is_actual",False),
             "quote":df.attrs.get("quote","USD"),"requested_days":p.days,"synthetic":p.source=="demo", "timeframe":df.attrs.get("timeframe",df.attrs.get("time_frame","onbekend")),
             "note":df.attrs.get("note", "Synthetische demonstratiedata; geen echte historische koersen." if p.source=="demo" else "CoinGecko bepaalt candle-intervallen automatisch; langere periode betekent niet noodzakelijk meer candles."),
@@ -103,7 +103,7 @@ def status():
     return {"app":"Crypto Paper Lab","version":VERSION,"mode":"PAPER ONLY — nooit live orders",
             "coingecko_configured":configured,"strategies":STRATEGIES,
             "coins":{k:v[0] for k,v in COINS.items()},"storage":str(storage.data_dir()),
-            "risk_per_trade_pct":.25,"max_exposure_pct":25,"max_daily_loss_pct":1,"max_drawdown_lock_pct":10}
+            "supported_directions":["long","short","both"],"risk_per_trade_pct":.25,"max_exposure_pct":25,"max_daily_loss_pct":1,"max_drawdown_lock_pct":10}
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -164,7 +164,7 @@ def dataset(value:CSVImport):
     except (ValueError,DataError) as exc: raise HTTPException(422,str(exc)) from exc
 
 def replay_payload(eng,meta,candles):
-    return {"meta":meta,"snapshot":eng.snapshot(),"candles":candles}
+    return {"meta":meta,"snapshot":eng.snapshot(),"candles":candles,"engine_format":"long-short-v1"}
 
 @app.post("/api/replay/start")
 def replay_start(p:Params):
@@ -211,6 +211,7 @@ def resume(run_id:str):
     row=find_run(run_id)
     if row["kind"]!="replay": raise HTTPException(422,"Dit is geen replay.")
     p=Params(**row["params"]); payload=row["payload"]
+    if payload.get("engine_format")!="long-short-v1":raise HTTPException(409,"Oud replaymodel: het opgeslagen resultaat blijft beschikbaar. Start een nieuwe replay voor de huidige engine.")
     df=unpack_candles(payload["candles"])
     eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,parameters=p.parameters)
     eng.step(payload["snapshot"]["progress"])
@@ -317,4 +318,6 @@ def job_status(job_id:str):
     with _jobs_lock:
         if job_id not in _jobs:raise HTTPException(404,"Taak niet gevonden; mogelijk is de server herstart. Eerdere resultaten staan bij Opgeslagen onderzoeken.")
         return dict(_jobs[job_id])
+
+
 

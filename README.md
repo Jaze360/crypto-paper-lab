@@ -1,8 +1,36 @@
-# Crypto Paper Lab — v0.3
+# Crypto Paper Lab — v0.4
 
-Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders, exchange-accountkoppeling, shorts of hefboom.
+Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
 
-## Nieuw in v0.3
+## Nieuw in v0.4: paper-shorts
+
+Kies **Handelsrichting**: alleen LONG, alleen SHORT of LONG + SHORT. Er blijft maximaal één fictieve positie tegelijk open. De richting wordt bij instellingen en resultaten bewaard en blijft tijdens parameterselectie vast.
+
+### Shortregels
+
+- EMA: neerwaartse kruising voor shortinstap; uitstap zodra de snelle EMA boven de trage staat.
+- RSI: gespiegeld ten opzichte van de longdrempels. Standaard een neerwaartse kruising van 70 voor instap en RSI ≤45 voor uitstap (longinstellingen 30/55).
+- Breakout: neerwaartse uitbraak onder de voorafgaande lows, met voldoende echt candlevolume. CoinGecko zonder volume blijft hiervoor geblokkeerd.
+- Shortstop boven de instap; target eronder. Een target op of onder nul wordt geweigerd.
+- Signalering gebruikt uitsluitend gesloten eerdere candles. Bij een tegengesteld signaal kan de positie op de volgende open worden gesloten en omgedraaid, met kosten voor beide transacties. Nooit een instap op een eerdere open na een latere intrabar uitstap.
+
+### Onderpand, kosten en grenzen
+
+Het model reserveert **100% van de instapnotional** uit vrije cash als shortonderpand. De opbrengst van de shortverkoop is niet beschikbaar als nieuw handelskapitaal. Short-equity is vrije cash + onderpand + ongerealiseerde winst/verlies. Bij sluiting komen onderpand en netto koerswinst/verlies vrij, minus uitstapkosten. De bestaande blootstellingslimiet van 25% geldt bij instap.
+
+**Short-leenkosten (% per dag)** is een door jou ingestelde simulatieparameter (standaard 0,02%), geen actueel markttarief. Per candle met een shortpositie wordt instapnotional × dagtarief × kalenderduur afgetrokken. Ook bij een intrabar stop/target wordt conservatief de hele candle gerekend. Een gapuitstap op de open rekent geen nieuwe candlekosten. Kostenstress verdubbelt naast fee/slippage ook het leentarief, tot de modelgrens van 1% per dag.
+
+De positiegrootte reserveert maximaal 0,25% gepland risico inclusief instap-/stopuitvoeringskosten en één candle leenkosten. Langere looptijd en koersgaps kunnen dit geplande risico overschrijden. Grote shortgaps mogen in de simulatie negatief accountvermogen tonen; dit wordt niet kunstmatig op nul afgekapt en blokkeert verdere entries.
+
+Er is **geen echte margin-, funding-, borrowbeschikbaarheids- of liquidatie-engine**. Geen hefboominstelling, brokeraccount of live orderroute. Het vaste onderpandmodel voorspelt dus niet hoe een echte beurs een positie zou behandelen. De benchmark blijft long kopen-en-vasthouden, ook bij shortonderzoek.
+
+Het journal en CSV bevatten richting, leenkosten en aangehouden candles. Vergelijkingen tonen aantallen long- en shorttrades; de blootstelling is de absolute positiewaarde ten opzichte van accountvermogen.
+
+### Bestaande resultaten en replays
+
+Oude backtests en rapporten blijven leesbaar. Replays uit het oudere long-only-model openen als bewaard resultaat, maar worden niet stilzwijgend met de nieuwe boekhouding herberekend. Start daarvoor een nieuwe replay. Nieuwe long/short-replays kunnen wel exact worden hervat.
+
+## Functies uit v0.3
 
 - Meerjarige publieke OHLCV-historie (Binance data-only), tot 5 jaar op 1 uur / 4 uur / 1 dag. Prijzen in **USDT**; Kraken, CoinGecko en CSV blijven in USD.
 - EMA-, RSI-, breakout-, volume- en ATR-stop/targetparameters instelbaar. De bestaande risicolimieten blijven vast.
@@ -138,7 +166,7 @@ De standaardstrategieën blijven **EMA 8/21**, **RSI(14) herstel** en **20-bar b
 - **Kopen-en-vasthouden**: hetzelfde 30%-testsegment, met kosten aan beide zijden; zowel 100% als 25% initiële blootstelling. Het risicoprofiel is anders dan dat van de strategieën.
 - Bij minder dan 30 trades staat expliciet dat er te weinig bewijs is. Meerdere strategieën of coins vergelijken verhoogt het risico op toevallige winnaars.
 
-Long-only, één positie. Maximaal 0,25% gepland risico per trade en 25% blootstelling; blokkade op nieuwe entries na 1% dagverlies of 10% drawdown. Gaps kunnen meer verlies veroorzaken dan gepland. Daglimieten worden op candle-open getoetst; er is geen professionele realtime risicobewaking. Bij stop en target in dezelfde candle geldt conservatief stop-first.
+Eén positie tegelijk, met de gekozen long/short-richting. Maximaal 0,25% gepland risico per trade en 25% blootstelling; blokkade op nieuwe entries na 1% dagverlies of 10% drawdown. Gaps kunnen meer verlies veroorzaken dan gepland. Daglimieten worden op candle-open getoetst; er is geen professionele realtime risicobewaking. Bij stop en target in dezelfde candle geldt conservatief stop-first.
 
 Historische candle-replay is geen autonome forward paper engine. Posities, rendementen, kosten en uitvoering blijven simulaties. Er is geen AI-API of live orderfunctie aangesloten.
 
@@ -151,5 +179,6 @@ Historische candle-replay is geen autonome forward paper engine. Posities, rende
 Tests gebruiken eigen tijdelijke opslag en fictieve sleutels. Ze controleren onder meer exact hervatten van replays, opslag, CSV-validatie, verwijderen van onvoltooide candles, publieke data-cache, benchmarkkosten, updatecontrole, back-up, herstel bij onderbreking en Windows-versleuteling.
 
 **Geen bewijs van winstgevendheid of financieel advies.** De app helpt strategieën eerlijker onderzoeken, niet resultaten winstgevend laten lijken.
+
 
 

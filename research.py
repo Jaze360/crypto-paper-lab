@@ -16,6 +16,11 @@ def benchmark(df,capital,fee,slip,start,end,exposure=1.):
 def run(df,strategy,capital,fee,slip,left,right,parameters):
     return PaperEngine(df,strategy,capital,fee,slip,start=left,end=right,parameters=parameters).finish(record=False)
 
+def stress_parameters(parameters):
+    p=config(parameters).model_dump()
+    p["short_borrow_daily_pct"]=min(1.,p["short_borrow_daily_pct"]*2)
+    return p
+
 def research(df,capital,fee,slip,parameters=None):
     n=len(df)
     if n<120:raise ValueError("Vergelijking vereist minimaal 120 gesloten candles.")
@@ -31,7 +36,7 @@ def research(df,capital,fee,slip,parameters=None):
             result=run(df,strategy,capital,fee,slip,left,right,p)
             folds.append({"from":df.iloc[left].time.isoformat(),"to":df.iloc[right-1].time.isoformat(),
                           **result["metrics"]})
-        stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),cut,n,p)
+        stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),cut,n,stress_parameters(p))
         rows.append({"strategy":strategy,"label":label,"parameters":p,"train":train["metrics"],
                      "test":test["metrics"],"folds":folds,"cost_stress_return_pct":stress["return_pct"],
                      "warnings":[f"{name}: slechts {r['metrics']['trades']} transacties; onvoldoende bewijs."
@@ -43,7 +48,10 @@ def research(df,capital,fee,slip,parameters=None):
                      "Elke periode start met leeg fictief account; alleen eerdere candles warmen indicatoren op.",
                      "Tijd in markt is het aandeel candles met een positie na de beslissingen op candle-open; geen exacte intrabar tijd.",
                      "Gemiddelde blootstelling is de gemiddelde positie/vermogen-verhouding op candle-open, inclusief lege candles.",
-                     "Benchmarks hebben andere risicoprofielen. Meerdere tests en weinig trades beperken conclusies."]}
+                     "Benchmarks zijn kopen-en-vasthouden LONG, ook bij shortonderzoek; risicoprofielen verschillen.",
+                     "Shorts gebruiken 100% onderpand en vaste leenkosten; geen echte financiering, liquidatie of levergarantie.",
+                     "Kostenstress verdubbelt ook shortleenkosten, tot de ingestelde modelgrens.",
+                     "Meerdere tests en weinig trades beperken conclusies."]}
 
 def candidates(strategy,parameters):
     base=config(parameters).model_dump();result=[base]
@@ -90,7 +98,7 @@ def walk_forward(df,strategy,capital,fee,slip,parameters=None,progress=None):
     # Selection sees only [0,hold), never the final holdout prices.
     chosen,scored,eligible=choose(df,strategy,capital,fee,slip,0,hold,options)
     final=run(df,strategy,capital,fee,slip,hold,n,chosen["parameters"])
-    stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),hold,n,chosen["parameters"])
+    stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),hold,n,stress_parameters(chosen["parameters"]))
     return {"strategy":strategy,"folds":folds,"holdout_start":hold,"holdout_end":n,
             "holdout_from":df.iloc[hold].time.isoformat(),"holdout_to":df.iloc[-1].time.isoformat(),
             "selected":chosen["parameters"],"selection_valid":eligible,"selection":scored,
@@ -103,4 +111,7 @@ def walk_forward(df,strategy,capital,fee,slip,parameters=None,progress=None):
                      "Selectie blijft beperkt tot maximaal vier vooraf vastgelegde kandidaten; geen winstgarantie.",
                      "Elke periode herstart fictief kapitaal en posities; rendementen zijn geen samengestelde live rekening.",
                      "Marktperiode is achteraf ingedeeld op prijsverandering (>5% stijgend, <-5% dalend); geen voorspellend signaal.",
-                     "Minder dan 30 testtrades blijft onvoldoende bewijs, ook na parameterselectie."]}
+                     "Minder dan 30 testtrades blijft onvoldoende bewijs, ook na parameterselectie.",
+                     "Handelsrichting blijft vast tijdens parameterkeuze. Shortleenkosten worden meegenomen; stress verdubbelt ze.",
+                     "Benchmarks zijn long kopen-en-vasthouden; shorts zijn een vereenvoudigd onderpandmodel zonder echte margin-liquidatie."]}
+

@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.4.0
+- Paper LONG, SHORT of beide richtingen, met één positie tegelijk.
+- Gespiegelde EMA-/RSI- en volume-breakdownsignalen voor shorts.
+- Gereserveerd shortonderpand, directionele P&L, slippage en commissies.
+- Instelbare vaste shortleenkosten en stressvariant.
+- Stop/target, gaps, kapitaalblokkades en negatieve equity correct doorgerekend voor shorts.
+- Richting, leenkosten en positieduur in rapporten en CSV; exacte hervatting van nieuwe replays.
+- Oude long-only-replays blijven als opgeslagen resultaat beschikbaar.
+
 ## 0.3.0
 - Meerjarige publieke OHLCV met paginering, data-only endpoint en uurcache; tot 5 jaar op 1u/4u/1d, in USDT.
 - Instelbare strategieparameters met bereik- en volgordevalidatie; risicobudgetten blijven vast.
@@ -14,3 +23,4 @@
 - Lokale opslag, private/publieke updater, Windows-sleutelversleuteling, Kraken OHLCV en CSV-import.
 - Vaste strategievergelijking met kostenstress, tijdvensters en benchmarks.
 - Herstel van intrabar uitvoeringsvolgorde; uitsluitend paper trading.
+
