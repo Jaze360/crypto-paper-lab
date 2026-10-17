@@ -4,8 +4,9 @@ import pandas as pd
 from typing import Literal
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
-REFERENCE_STRATEGIES={"ema":"EMA trendvolgend","rsi":"RSI herstel","breakout":"Breakout + candlevolume"}
-STRATEGIES={**REFERENCE_STRATEGIES,"pullback":"Trend-pullback v1 (vast)"}
+from cartridges import REGISTRY,get_cartridge
+REFERENCE_STRATEGIES={k:c.name for k,c in REGISTRY.items() if k in ("ema","rsi","breakout")}
+STRATEGIES={k:c.name for k,c in REGISTRY.items()}
 class StrategyConfig(BaseModel):
     model_config=ConfigDict(extra="forbid")
     max_holding_bars:int=Field(default=0,ge=0,le=500)
@@ -48,49 +49,23 @@ def add_indicators(candles, parameters=None):
     d["vol_mean20"]=d.volume.shift().rolling(p.breakout_period,min_periods=p.breakout_period).mean()
     d.attrs.update(candles.attrs);d.attrs["strategy_config"]=p.model_dump()
     return d
-def signals(df,strategy):
-    p=config(df.attrs.get("strategy_config"))
-    if strategy=="ema":
-        enter=(df.ema_fast>df.ema_slow)&(df.ema_fast.shift()<=df.ema_slow.shift())
-        leave=df.ema_fast<df.ema_slow
-    elif strategy=="rsi":
-        enter=(df.rsi.shift()<p.rsi_entry)&(df.rsi>=p.rsi_entry)
-        leave=df.rsi>=p.rsi_exit
-    elif strategy=="pullback":
-        enter=(df.close>df.trend_ema)&(df.ema_slow>df.trend_ema)&(df.trend_slope>0)&(df.close.shift()<=df.ema_fast.shift())&(df.close>df.ema_fast)
-        leave=df.close<df.ema_slow
-    elif strategy=="breakout":
-        enter=(df.close>df.prior_high20)&(df.volume>p.volume_multiple*df.vol_mean20)&(df.close.shift()<=df.prior_high20.shift())
-        leave=df.close<df.ema_fast
-    else:raise ValueError("Onbekende strategie")
-    warmup=max(22,p.ema_slow if strategy=="ema" else p.rsi_period+1 if strategy=="rsi" else max(p.ema_fast,p.breakout_period+1))
-    if strategy=="pullback":warmup=220
-    enter=enter.fillna(False).to_numpy(dtype=bool);leave=leave.fillna(False).to_numpy(dtype=bool)
+def _signals(df,strategy,side):
+    p=config(df.attrs.get("strategy_config"));c=get_cartridge(strategy)
+    enter,leave=(c.long if side=="long" else c.short)(df,p)
+    # Detached arrays keep masking compatible with pandas copy-on-write.
+    enter=enter.fillna(False).to_numpy(dtype=bool,copy=True)
+    leave=leave.fillna(False).to_numpy(dtype=bool,copy=True)
+    warmup=c.warmup(p)
     enter[:warmup]=False;leave[:warmup]=False
     return enter,leave
+
+def signals(df,strategy):
+    return _signals(df,strategy,"long")
+
+def short_signals(df,strategy):
+    return _signals(df,strategy,"short")
+
 def signal(df,i,strategy):
     if i<0 or i>=len(df):return False,False
     enter,leave=signals(df,strategy)
     return bool(enter[i]),bool(leave[i])
-
-
-def short_signals(df,strategy):
-    p=config(df.attrs.get("strategy_config"))
-    if strategy=="ema":
-        enter=(df.ema_fast<df.ema_slow)&(df.ema_fast.shift()>=df.ema_slow.shift())
-        leave=df.ema_fast>df.ema_slow
-    elif strategy=="rsi":
-        enter=(df.rsi.shift()>100-p.rsi_entry)&(df.rsi<=100-p.rsi_entry)
-        leave=df.rsi<=100-p.rsi_exit
-    elif strategy=="pullback":
-        enter=(df.close<df.trend_ema)&(df.ema_slow<df.trend_ema)&(df.trend_slope<0)&(df.close.shift()>=df.ema_fast.shift())&(df.close<df.ema_fast)
-        leave=df.close>df.ema_slow
-    elif strategy=="breakout":
-        enter=(df.close<df.prior_low20)&(df.volume>p.volume_multiple*df.vol_mean20)&(df.close.shift()>=df.prior_low20.shift())
-        leave=df.close>df.ema_fast
-    else:raise ValueError("Onbekende strategie")
-    warmup=max(22,p.ema_slow if strategy=="ema" else p.rsi_period+1 if strategy=="rsi" else max(p.ema_fast,p.breakout_period+1))
-    if strategy=="pullback":warmup=220
-    enter=enter.fillna(False).to_numpy(dtype=bool);leave=leave.fillna(False).to_numpy(dtype=bool)
-    enter[:warmup]=False;leave[:warmup]=False
-    return enter,leave

@@ -4,6 +4,8 @@ import math
 import numpy as np
 from strategies import add_indicators,signals,short_signals,config,STRATEGIES
 
+from cartridges import get_cartridge,manifest
+
 RISK_PER_TRADE=.0025
 MAX_EXPOSURE=.25
 MAX_DAILY_LOSS=.01
@@ -29,13 +31,14 @@ class Position:
 class PaperEngine:
     def __init__(self,candles,strategy="ema",capital=10000.,fee=.001,slip=.0005,start=0,end=None,parameters=None):
         if strategy not in STRATEGIES:raise ValueError("Onbekende strategie")
-        if strategy=="breakout" and not candles.attrs.get("volume_is_actual",False):
+        self.cartridge=get_cartridge(strategy)
+        if self.cartridge.requires_volume and not candles.attrs.get("volume_is_actual",False):
             raise ValueError("Volume-breakout vereist echt candlevolume; CoinGecko OHLC heeft dat niet.")
         if capital<=0 or not(0<=fee<=.01) or not(0<=slip<=.02):raise ValueError("Ongeldige parameters")
         self.parameters=config(parameters)
-        if strategy=="pullback":
-            self.parameters=config(dict(self.parameters.model_dump(),ema_fast=20,ema_slow=50,trend_filter=True,
-                                        cooldown_bars=12,stop_atr=2.5,target_atr=5.,max_holding_bars=30))
+        if self.cartridge.fixed:
+            self.parameters=config(dict(self.parameters.model_dump(),**dict(self.cartridge.fixed)))
+        self.cartridge_manifest=manifest(strategy)
         self.d=add_indicators(candles,self.parameters)
         self.rows=list(self.d.itertuples(index=False))
         self.entry_signals,self.exit_signals=signals(self.d,strategy)
@@ -114,9 +117,7 @@ class PaperEngine:
                                qty*fill if side=="short" else 0.,0.,qty*unit_loss)
         self.position.entry_slippage=abs(fill-raw_open)*qty
         p=self.parameters
-        rule=("Trend-pullback v1: EMA20-herovering in EMA50/200-trend" if self.strategy=="pullback" else f"EMA {p.ema_fast}/{p.ema_slow}-kruising" if self.strategy=="ema" else
-              f"RSI {p.rsi_period} kruist {p.rsi_entry if side=='long' else 100-p.rsi_entry}" if self.strategy=="rsi" else
-              f"Uitbraak over {p.breakout_period} vorige candles met volumefactor {p.volume_multiple}")
+        rule=self.cartridge.reason(p,side)
         self.position.entry_reason=f"{side.upper()}: {rule}. Signaal vorige gesloten candle; uitvoering op volgende open."
         if p.trend_filter:self.position.entry_reason+=" EMA200-trendfilter doorstaan."
         if p.cooldown_bars:self.position.entry_reason+=f" Wachttijd {p.cooldown_bars} candles doorstaan."
@@ -214,6 +215,7 @@ class PaperEngine:
                      avg_holding_bars=round(float(np.mean(self.holding_bars)),2) if self.holding_bars else None,
                      total_borrow_cost=round(self.total_borrow,6))
         stats["loss_analysis"]=self.loss_analysis(eq)
+        stats["cartridge"]=self.cartridge_manifest
         return {"strategy":self.strategy,"completed":self.idx>=self.end,"progress":self.idx-self.start,"total":self.end-self.start,
                 "initial_capital":self.capital,"equity":round(eq,2),"return_pct":round((eq/self.capital-1)*100,3),
                 "cash":round(self.cash,2),"reserved_collateral":round(self.position.collateral,2) if self.position else 0.,"max_drawdown_pct":round(self.max_dd*100,3),"locked":self.locked,

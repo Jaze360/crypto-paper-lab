@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## 0.11.0
+- Vier ingebouwde strategieën als afzonderlijke cartridges met expliciete registry en interface.
+- Cartridgebibliotheek, keuze voor volgende test en alleen relevante strategieparameters zichtbaar.
+- Versie en bronvingerafdruk per nieuw resultaat; gewijzigde nieuwe replays worden bij hervatten geweigerd.
+- Twaalf volledige uitkomsten blijven identiek aan de vastgelegde v0.10-resultaten.
+- Literatuuronderzoek naar vijf strategierichtingen, inclusief tegenbewijs, kosten en benodigde engine-uitbreidingen.
+
 ## 0.10.0
 - Vast trend-pullbackprotocol naast drie bevroren referenties op BTC, ETH en SOL, met gemeenschappelijke datagrenzen.
 - Vier gescheiden perioden en drie kostenscenario's, elk met dubbele kosten, opgeslagen vingerafdrukken en expliciete datafouten.

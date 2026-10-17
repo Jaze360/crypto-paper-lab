@@ -9,11 +9,12 @@ from typing import Literal
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from market_data import (CoinGeckoProvider, KrakenProvider, HistoricalProvider, demo_candles, DataError,
                          COINS, pack_candles, unpack_candles, import_csv)
 from engine import PaperEngine, run_backtest, direction_breakdown
 from strategies import STRATEGIES, StrategyConfig
+from cartridges import catalog,get_cartridge
 import storage
 from secrets_store import get_key, save_key
 import updater
@@ -46,7 +47,13 @@ class Params(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source: Literal["demo","coingecko","kraken","historical","csv"] = "demo"
     coin: str = Field(default="bitcoin", pattern="^[a-z0-9-]{1,60}$")
-    strategy: Literal["ema","rsi","breakout"] = "ema"
+    strategy: str = Field(default="ema",pattern="^[a-z][a-z0-9_]{0,39}$")
+    @field_validator("strategy")
+    @classmethod
+    def allowed_cartridge(cls,value):
+        c=get_cartridge(value)
+        if c.protocol_only:raise ValueError("Deze cartridge gebruikt uitsluitend het vaste onderzoeksprotocol.")
+        return value
     days: Literal[7,14,30,90,180,365,730,1095,1825] = 30
     interval: Literal[60,240,1440] = 1440
     parameters: StrategyConfig = Field(default_factory=StrategyConfig)
@@ -105,6 +112,15 @@ def status():
             "coingecko_configured":configured,"strategies":STRATEGIES,
             "coins":{k:v[0] for k,v in COINS.items()},"storage":str(storage.data_dir()),
             "supported_directions":["long","short","both"],"risk_per_trade_pct":.25,"max_exposure_pct":25,"max_daily_loss_pct":1,"max_drawdown_lock_pct":10}
+
+@app.get("/api/cartridges")
+def cartridge_catalog():
+    fields=StrategyConfig.model_json_schema()["properties"]
+    items=catalog()
+    for c in items:
+        c["parameter_schema"]={key:fields[key] for key in c["parameters"]}
+    return {"api_version":1,"paper_only":True,"cartridges":items,
+            "execution":"Gedeelde paper-engine; kosten en harde risicolimieten gelden voor alle cartridges."}
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -222,6 +238,9 @@ def resume(run_id:str):
     if payload.get("engine_format")!="long-short-v1":raise HTTPException(409,"Oud replaymodel: het opgeslagen resultaat blijft beschikbaar. Start een nieuwe replay voor de huidige engine.")
     df=unpack_candles(payload["candles"])
     eng=PaperEngine(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,parameters=p.parameters)
+    previous=payload["snapshot"].get("metrics",{}).get("cartridge")
+    if previous and previous!=eng.cartridge_manifest:
+        raise HTTPException(409,"Cartridge of engine gewijzigd: opgeslagen resultaat behouden. Start een nieuwe replay voor de huidige versie.")
     eng.step(payload["snapshot"]["progress"])
     with _lock:
         _sessions["local"]=(eng,payload["meta"],payload["candles"],run_id,p.model_dump())

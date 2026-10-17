@@ -1,6 +1,12 @@
-# Crypto Paper Lab — v0.10
+# Crypto Paper Lab — v0.11
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.11: strategiecartridges
+
+Klik **Cartridges** bovenaan voor de nieuwe bibliotheek. EMA, RSI, breakout en de vaste trend-pullback zijn afzonderlijke modules met eigen ID, versie, uitleg en handelsregels. Een keuze bereidt alleen je volgende onderzoek voor. De gedeelde paper-engine blijft kosten, uitvoering en risicolimieten bewaken. Strategieparameters die niet bij je keuze horen worden verborgen. Nieuwe resultaten bewaren een cartridgevingerafdruk; gewijzigde nieuwe replays worden niet stilzwijgend onder andere code hervat.
+
+De bestaande handelsregels en negen Botarena-profielen blijven behouden. Een modulaire opbouw maakt een verlieslatende strategie niet winstgevend. [Gebruik en uitbreiden van cartridges](CARTRIDGES.md). Onderzochte vervolgrichtingen met primaire bronnen en beperkingen staan in [strategieonderzoek](STRATEGIE_ONDERZOEK.md); deze nieuwe kandidaten zijn nog niet ingebouwd of door ons getest. Geen live orders, hefboom of willekeurige code-import toegevoegd.
 
 ## Nieuw in v0.10: vaste hypothese en kostenonderzoek
 

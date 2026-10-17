@@ -54,7 +54,7 @@ def research(df,capital,fee,slip,parameters=None):
                      "Meerdere tests en weinig trades beperken conclusies."]}
 
 def candidates(strategy,parameters):
-    if strategy=="pullback":raise ValueError("Trend-pullback v1 is een vaste hypothese en wordt niet geoptimaliseerd.")
+    if strategy not in REFERENCE_STRATEGIES:raise ValueError("Trend-pullback v1 is een vaste hypothese en wordt niet geoptimaliseerd.")
     base=config(parameters).model_dump();result=[base]
     changes={"ema":[{"ema_fast":5,"ema_slow":20},{"ema_fast":12,"ema_slow":50},{"ema_fast":20,"ema_slow":100}],
              "rsi":[{"rsi_entry":25,"rsi_exit":55},{"rsi_entry":35,"rsi_exit":60},{"rsi_period":21,"rsi_entry":30,"rsi_exit":55}],
