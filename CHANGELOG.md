@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.6.0
+- Vereenvoudigde bediening met één startknop en keuze van onderzoekstype.
+- Geavanceerde instellingen, onderhoud en resultaatdetails uitklapbaar.
+- Vernieuwde responsieve vormgeving en resultaatkaarten bovenaan.
+- Bestaande berekeningen en opslag behouden.
+
 ## 0.5.0
 - Gesloten-traderesultaten uitgesplitst naar LONG/SHORT en exitreden.
 - Bruto vóór kosten, slippage, commissies, shortleenkosten en netto bijdrage apart zichtbaar.

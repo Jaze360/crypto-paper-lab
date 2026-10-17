@@ -1,6 +1,10 @@
-# Crypto Paper Lab — v0.5
+# Crypto Paper Lab — v0.6
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.6: een rustigere werkplek
+
+Eén startknop met keuze van onderzoekstype. Kosten, strategieparameters, CSV-import, opgeslagen onderzoeken en onderhoud zijn uitklapbaar. Resultaten staan bovenaan; methodetoelichtingen en long-/shortdetails open je wanneer nodig. Nieuwe paarse accenten, helderdere typografie en een indeling die meebeweegt op kleinere schermen. Bestaande instellingen, opslag, tests en paper-only-regels blijven behouden.
 
 ## Nieuw in v0.5: long-/shortuitsplitsing
 
