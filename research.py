@@ -116,3 +116,39 @@ def walk_forward(df,strategy,capital,fee,slip,parameters=None,progress=None):
                      "Benchmarks zijn long kopen-en-vasthouden; shorts zijn een vereenvoudigd onderpandmodel zonder echte margin-liquidatie."]}
 
 
+
+
+def bot_arena(df,capital,fee,slip,parameters=None,progress=None):
+    """Nine fixed contestants; same candles/capital/costs, no winner selection."""
+    base=config(parameters).model_dump();bots=[];common=None
+    rules={"ema":"Kruising snelle/trage EMA; uitstap bij tegengestelde trend.",
+           "rsi":"LONG: RSI herstelt over instapdrempel; SHORT: neerwaartse kruising van gespiegelde drempel.",
+           "breakout":"Uitbraak voorbij vorige highs/lows met echt candlevolume; uitstap op EMA."}
+    for direction in ("long","short","both"):
+        if progress:progress("Botarena: "+direction.upper()+" testen op dezelfde candles.")
+        report=research(df,capital,fee,slip,dict(base,trade_mode=direction));common=report
+        for row in report["strategies"]:
+            row=dict(row,id=row["strategy"]+"-"+direction,direction=direction,
+                     rule=rules[row["strategy"]],label=row["label"]+" · "+direction.upper())
+            if not row.get("skipped"):
+                sides=row["test"]["direction_breakdown"]["sides"].values()
+                net=sum(x["net_pnl"] for x in sides);cost=sum(x["total_costs"] for x in sides)
+                row["closed_net_pnl"]=round(net,6);row["closed_costs"]=round(cost,6)
+                row["net_per_trade"]=round(net/row["test"]["trades"],6) if row["test"]["trades"] else None
+                row["assessment"]=("Te weinig trades" if row["test"]["trades"]<30 else
+                                   "Negatief na kosten" if row["test"]["return_pct"]<=0 else
+                                   "Kwetsbaar voor kosten" if row["cost_stress_return_pct"]<=0 else "Verder onderzoeken")
+            bots.append(row)
+    cut=round(len(df)*.7)
+    return {"bots":bots,"base_parameters":base,"test_from":df.iloc[cut].time.isoformat(),
+            "test_to":df.iloc[-1].time.isoformat(),"benchmark":common["benchmark"],
+            "benchmark_25pct":common["benchmark_25pct"],"notes":[
+            "Negen vaste profielen: EMA, RSI en breakout × LONG, SHORT en BOTH. Geen LLM-agenten; uitvoering volgt vaste regels.",
+            "Identieke candles, kapitaal, kosten en 70/30-grens. Alleen strategie en handelsrichting verschillen; overige instellingen blijven gelijk.",
+            "Geen rangschikking, automatische winnaarselectie, optimalisatie of uitschakeling van verliezers. Alle profielen blijven zichtbaar.",
+            "Drie tijdvensters overlappen niet met elkaar, maar deels met de 30%-test. Herhaald bekijken maakt testdata niet meer ongezien.",
+            "Profielen hebben verschillende blootstelling; dit is geen portefeuille of vergelijking bij gelijk risico.",
+            "Netto/trade en totale kosten betreffen gesloten trades. Slippage is al in fills verwerkt; niet opnieuw aftrekken.",
+            "Minder dan 30 trades is onvoldoende bewijs; een positieve uitkomst of kostenstress bewijst geen toekomstige winst.",
+            "Een profiel gebruiken laadt de vastgelegde strategie en richting in het formulier. Er start geen handel of nieuwe test.",
+            "Simulatie zonder hefboom. Shorts gebruiken het bestaande vereenvoudigde onderpand- en leenkostenmodel."]}

@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.7.0
+- Botarena met negen vaste profielen, gelijke data en expliciete kosten.
+- Resultaten, regels en profielhergebruik zonder automatische winnaarselectie.
+- Bewaarde arena’s en uitsplitsing per deelnemer.
+- Bronverantwoording van 30 YouTube-zoekresultaten via transcripties.
+
 ## 0.6.0
 - Vereenvoudigde bediening met één startknop en keuze van onderzoekstype.
 - Geavanceerde instellingen, onderhoud en resultaatdetails uitklapbaar.

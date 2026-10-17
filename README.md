@@ -1,6 +1,12 @@
-# Crypto Paper Lab — v0.6
+# Crypto Paper Lab — v0.7
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.7: Botarena
+
+Kies bij het onderzoekstype **Botarena**. Negen vaste profielen gebruiken dezelfde data: EMA, RSI en breakout, ieder in LONG, SHORT en BOTH. Kosten, netto per trade, drawdown en drie tijdvensters blijven per profiel zichtbaar. Er is geen rangschikking of automatische winnaar. **Gebruik dit profiel** laadt de regels voor een aparte walk-forwardtest, zonder iets te starten. Arena’s worden automatisch bewaard en zijn later terug te openen.
+
+Inspiratie en bronverantwoording: [Rubicon-onderzoek](RUBICON_ONDERZOEK.md). Dit zijn vaste regelbots, geen AI-modellen of reproductie van een betaalde strategie. Paper-only blijft behouden.
 
 ## Nieuw in v0.6: een rustigere werkplek
 
