@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.16.0
+- Supertrend en Keltner behouden; Aroon-trend en KAMA adaptieve trend vervangen Bollinger en mislukte uitbraak in de zes primaire keuzes.
+- Nieuwe vaste dagregels, uitvoering op dezelfde uurcandles en vooraf vastgelegd onderzoeksprotocol.
+- Automatische afzonderlijke volledige risicoscenario's 0,25%, 0,50% en 1,00%, elk met kostenstress; geen automatische overname of extra instellingen.
+- Grotere posities echt doorgerekend, met ongewijzigde stopafstand, 25%-instaplimiet, volledig shortonderpand en dag-/drawdownstops.
+- Standaardrisico 0,25%, hoofdresultaat, periodecriteria en oorspronkelijke LONG-referenties ongewijzigd.
+- Risico, blootstelling, drawdown en stopdatum in details; CSV bevat hogere scenario's. Oude onderzoeken behouden. Geen hefboom of echte orders.
+
 ## 0.15.0
 - Twee behouden langzame strategieën uitgebreid met spiegelbeeldige SHORT-regels als nieuwe v1.1-cartridges; oorspronkelijke v1.0 LONG-implementaties behouden.
 - Automatische afzonderlijke LONG-referentie op dezelfde candles, normale/dubbele kosten en controleperioden, zichtbaar in details en CSV.

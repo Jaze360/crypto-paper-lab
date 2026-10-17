@@ -14,9 +14,11 @@ from cartridge_supertrend import CARTRIDGE as SUPERTREND
 from cartridge_bollinger import CARTRIDGE as BOLLINGER
 from cartridge_keltner import CARTRIDGE as KELTNER
 from cartridge_failed_breakout import CARTRIDGE as FAILED_BREAKOUT
+from cartridge_aroon import CARTRIDGE as AROON
+from cartridge_kama import CARTRIDGE as KAMA
 
-PRIMARY_IDS=('momentum63_both','donchian55_both','supertrend','bollinger','keltner','failed_breakout')
-_items=(EMA,RSI,BREAKOUT,PULLBACK,MOMENTUM63,DONCHIAN55,MOMENTUM_BOTH,CHANNEL_BOTH,SUPERTREND,BOLLINGER,KELTNER,FAILED_BREAKOUT)
+PRIMARY_IDS=('momentum63_both','donchian55_both','supertrend','keltner','aroon','kama')
+_items=(EMA,RSI,BREAKOUT,PULLBACK,MOMENTUM63,DONCHIAN55,MOMENTUM_BOTH,CHANNEL_BOTH,SUPERTREND,BOLLINGER,KELTNER,FAILED_BREAKOUT,AROON,KAMA)
 if len({c.id for c in _items})!=len(_items):raise ValueError("Dubbele cartridge-ID")
 REGISTRY=MappingProxyType({c.id:c for c in _items})
 
@@ -35,4 +37,4 @@ def manifest(strategy):
     return {**c.describe(),"api_version":1,"code_sha256":dict(_fingerprint(strategy))}
 
 def catalog():
-    return [{**manifest(c.id),'primary':c.id in PRIMARY_IDS} for c in _items]
+    return [{**manifest(c.id),'primary':c.id in PRIMARY_IDS} for c in sorted(_items,key=lambda c:PRIMARY_IDS.index(c.id) if c.id in PRIMARY_IDS else len(PRIMARY_IDS))]

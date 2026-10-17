@@ -1,4 +1,4 @@
-# Crypto Paper Lab — v0.15
+# Crypto Paper Lab — v0.16
 
 **Cartridge kiezen → Test cartridge.** Drie kalenderjaren, gesloten 1-uurscandles, top tien coins en kosten staan vast. Uitsluitend paper trading; geen echte orders.
 
@@ -20,11 +20,13 @@ Iedere geselecteerde coin krijgt dezelfde exacte periode: drie kalenderjaren tot
 
 De drie samenvattingskaarten tellen coins: volledig getest, positief na kosten, positief bij dubbele kosten. Ze tonen geen gemiddeld of gezamenlijk rekeningrendement. Per coin staan rendement over de volledige drie jaar, drawdown, trades, kostenstress en controle. De drie gescheiden controleperioden draaien automatisch op de achtergrond, ieder met nieuw fictief kapitaal. De volledige driejaarstest start één keer met kapitaal en kan de bestaande permanente risicostop bereiken; dat blijft zichtbaar in de beoordeling.
 
-Het hoofdscherm bevat precies zes cartridges: **Langzaam momentum · 63 dagen**, **Kanaaluitbraak · 55/20 dagen**, **Supertrend · 10 × 3**, **Bollinger-herstel · 20 × 2**, **Keltner-uitbraak · 20 × 2** en **Mislukte uitbraak · 20/100**. Alle zes testen LONG + SHORT. Signalen en volatiliteit gebruiken voltooide UTC-dagen, opgebouwd uit dezelfde uurdata; uitvoering en beschermende stops blijven op uurcandles.
+Het hoofdscherm bevat precies zes cartridges: **Langzaam momentum · 63 dagen**, **Kanaaluitbraak · 55/20 dagen**, **Supertrend · 10 × 3**, **Keltner-uitbraak · 20 × 2**, **Aroon-trend · 25 dagen** en **KAMA adaptieve trend · 10/2/30**. Alle zes testen LONG + SHORT. Signalen en volatiliteit gebruiken voltooide UTC-dagen, opgebouwd uit dezelfde uurdata; uitvoering en beschermende stops blijven op uurcandles. Supertrend en Keltner behouden hun regels; Aroon en KAMA vervangen Bollinger en mislukte uitbraak in de primaire keuze. Oude uitkomsten blijven beschikbaar.
 
 De twee behouden strategieën krijgen een v1.1-uitbreiding met spiegelbeeldige shortregels. Hun oorspronkelijke v1.0 LONG-regels blijven bestaan. De test rekent automatisch ook een afzonderlijke oorspronkelijke LONG-referentie door op dezelfde candles, kostenstress en drie controleperioden. Open **Details** om te zien of shorts helpen. LONG/SHORT-bijdragen binnen het gecombineerde account zijn geen afzonderlijke accounttests. CSV bevat bijdragen en de afzonderlijke LONG-referentie.
 
 De vier oorspronkelijke snelle cartridges zijn uit de primaire keuze vervangen; hun broncode, oude bediening en opgeslagen resultaten blijven behouden. Een positieve backtest is aanleiding voor nieuw paper-onderzoek, geen toestemming of garantie om met echt geld te handelen. Criteria en beperkingen staan uitklapbaar bij de test. De [nieuwe regels zijn vooraf vastgelegd](HYPOTHESEN_V015.md); geen parameters kiezen of optimaliseren. De [oorspronkelijke LONG-regels](HYPOTHESEN_LANGZAAM_V1.md) blijven als referentie geldig.
+
+De twee nieuwste hypotheses en de risicovergelijking staan in het [vooraf vastgelegde v0.16-protocol](HYPOTHESEN_V016.md). Ook deze regels worden niet na het meten bijgesteld.
 
 De permanente risicostop krijgt voorrang in de beoordeling, inclusief de eerste datum. De rest van de historie wordt nog verwerkt, maar de strategie mag daarna niet meer instappen. Een resultaat over drie jaar betekent dus niet noodzakelijk drie jaar actief handelen. Oude opgeslagen resultaten krijgen dezelfde duidelijkere weergave; hun getallen worden niet veranderd.
 
@@ -33,6 +35,10 @@ De permanente risicostop krijgt voorrang in de beoordeling, inclusief de eerste 
 Per coin/account 10.000 USDT fictief kapitaal, één positie tegelijk. Alle zes primaire cartridges gebruiken LONG + SHORT; de afzonderlijke oorspronkelijke referenties gebruiken LONG/cash. Fee 0,10% per zijde, slippage 0,05% per fill, vaste shortleenproxy 0,02% per dag. Kostenstress verdubbelt alle drie. Gepland risico maximaal 0,25% per trade, instapblootstelling maximaal 25%, dagelijkse entry-stop 1%, permanente drawdownstop 10%. Geen hefboom.
 
 Dit zijn Binance-spotprijzen met een vereenvoudigd shortonderpandmodel. Historische perpetual-funding, margin-liquidaties en werkelijke orderboekuitvoering ontbreken. De kosten zijn een scenario, geen bevestigd actueel accounttarief van een beurs. Een stop-loss garandeert geen maximaal verlies bij gaps.
+
+Onder **Details → Wat doet meer risico per trade?** worden standaardrisico 0,25% en twee afzonderlijke volledige driejaarsscenario's met 0,50% en 1,00% vergeleken, elk met normale én dubbele kosten. De engine rekent grotere posities echt door; rendement wordt niet achteraf vermenigvuldigd. Stopafstand, target, 25%-instapblootstelling, 1%-dagstop en 10%-drawdownstop blijven gelijk. Hierdoor kan hoger risico minder dan evenredig opschalen of eerder stoppen. Blootstelling en uren zonder positie verklaren mede kleine account-rendementen.
+
+De hogere scenario's zijn alleen volledige tests met kostenstress, zonder drieperiodenbeoordeling. Ze veranderen de standaard of keuze niet automatisch. De hoofdscore, oorspronkelijke LONG-referenties en geschiktheidscriteria blijven bij 0,25%. Geen extra instellingen. Oude rapporten krijgen geen achteraf verzonnen risicoscenario's; start daarvoor een nieuwe test.
 
 ## Bewaren en bijwerken
 

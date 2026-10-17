@@ -29,12 +29,15 @@ class Position:
     entry_reason:str=""
 
 class PaperEngine:
-    def __init__(self,candles,strategy="ema",capital=10000.,fee=.001,slip=.0005,start=0,end=None,parameters=None):
+    def __init__(self,candles,strategy="ema",capital=10000.,fee=.001,slip=.0005,start=0,end=None,parameters=None,*,risk_per_trade=RISK_PER_TRADE):
         if strategy not in STRATEGIES:raise ValueError("Onbekende strategie")
         self.cartridge=get_cartridge(strategy)
         if self.cartridge.requires_volume and not candles.attrs.get("volume_is_actual",False):
             raise ValueError("Volume-breakout vereist echt candlevolume; CoinGecko OHLC heeft dat niet.")
         if capital<=0 or not(0<=fee<=.01) or not(0<=slip<=.02):raise ValueError("Ongeldige parameters")
+        if isinstance(risk_per_trade,bool) or not isinstance(risk_per_trade,(int,float)) or risk_per_trade not in (.0025,.005,.01):
+            raise ValueError("Alleen vaste risicoscenario's van 0,25%, 0,50% en 1,00% zijn toegestaan.")
+        self.risk_per_trade=float(risk_per_trade)
         self.parameters=config(parameters)
         if self.cartridge.fixed:
             self.parameters=config(dict(self.parameters.model_dump(),**dict(self.cartridge.fixed)))
@@ -107,7 +110,7 @@ class PaperEngine:
         unit_loss=abs(fill-worst_exit)+self.fee*(fill+worst_exit)+one_bar_carry
         eq=self.equity(raw_open)
         if eq<=0:return
-        qty=min(eq*RISK_PER_TRADE/max(unit_loss,1e-9),eq*MAX_EXPOSURE/(fill*(1+self.fee)),
+        qty=min(eq*self.risk_per_trade/max(unit_loss,1e-9),eq*MAX_EXPOSURE/(fill*(1+self.fee)),
                 self.cash/(fill*(1+self.fee)))
         qty=math.floor(qty*1e8)/1e8
         if qty*fill<10:return

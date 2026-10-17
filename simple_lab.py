@@ -14,6 +14,7 @@ INTERVAL=60
 CAPITAL=10000.
 FEE=.001
 SLIP=.0005
+RISK_SCENARIOS=(.0025,.005,.01)
 
 def fixed_plan(cartridge,cutoff=None):
     c=get_cartridge(cartridge)
@@ -28,6 +29,8 @@ def fixed_plan(cartridge,cutoff=None):
             'capital':CAPITAL,'fee_pct':FEE*100,'slippage_pct':SLIP*100,'short_borrow_daily_pct':.02,
             'source':'Binance SPOT OHLCV in USDT','directions':{'long':'LONG / cash','short':'SHORT / cash','both':'LONG + SHORT'}[parameters['trade_mode']],'universe_size':10,
             'code_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    plan['risk_per_trade_pct']=.25
+    plan['risk_comparison_pct']=[r*100 for r in RISK_SCENARIOS]
     if c.long_reference:plan['long_reference']=manifest(c.long_reference)
     return plan
 
@@ -44,13 +47,13 @@ def prepare(candles,plan):
     d.attrs.update(candles.attrs)
     return d
 
-def evaluate(df,plan,progress=None):
+def evaluate(df,plan,progress=None,*,compare_risk=False):
     strategy=plan['cartridge']['id'];n=len(df);p=plan['parameters']
-    def run(left,right,stress=False):
+    def run(left,right,stress=False,risk=.0025):
         params=dict(p)
         if stress:params['short_borrow_daily_pct']=min(1,params['short_borrow_daily_pct']*2)
         return PaperEngine(df,strategy,CAPITAL,FEE*(2 if stress else 1),SLIP*(2 if stress else 1),
-                           start=left,end=right,parameters=params).finish(record=False)['metrics']
+                           start=left,end=right,parameters=params,**({'risk_per_trade':risk} if risk!=.0025 else {})).finish(record=False)['metrics']
     if progress:progress('Drie jaar doorrekenen')
     full=run(0,n);stress=run(0,n,True);periods=[]
     bounds=[round(n*i/3) for i in range(4)]
@@ -74,6 +77,11 @@ def evaluate(df,plan,progress=None):
         if progress:progress('Afzonderlijke oorspronkelijke LONG-referentie doorrekenen')
         reference=fixed_plan(plan['long_reference']['id'],plan['until_exclusive'])
         result['long_reference']=evaluate(df,reference)
+    if compare_risk:
+        result['risk_scenarios']=[{'risk_per_trade_pct':.25,'metrics':full,'stress':stress}]
+        for risk in RISK_SCENARIOS[1:]:
+            if progress:progress(f'Risicoscenario {risk*100:.2f}% doorrekenen')
+            result['risk_scenarios'].append({'risk_per_trade_pct':risk*100,'metrics':run(0,n,risk=risk),'stress':run(0,n,True,risk)})
     return result
 
 def run_test(cartridge,progress=None,*,cutoff=None,universe=None,fetch=None):
@@ -89,7 +97,7 @@ def run_test(cartridge,progress=None,*,cutoff=None,universe=None,fetch=None):
         try:
             report('Uurdata laden')
             df=prepare(fetch(coin['id'],plan['days'],INTERVAL,report,end_ms=end_ms),plan)
-            result=evaluate(df,plan,report)
+            result=evaluate(df,plan,report,compare_risk=True)
             results.append({'coin':coin['id'],'name':coin['name'],'symbol':coin['symbol'],**result})
         except (ValueError,DataError) as exc:
             results.append({'coin':coin['id'],'name':coin['name'],'symbol':coin['symbol'],'error':str(exc)})

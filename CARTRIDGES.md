@@ -1,4 +1,4 @@
-# Strategiecartridges — v0.15
+# Strategiecartridges — v0.16
 
 Een cartridge bevat beslisregels, een stabiele ID, eigen versie, uitleg, relevante parameters, warm-up, LONG/SHORT-signalen, instapreden en eventuele vaste regels of volumevereisten. Alle cartridges gebruiken dezelfde PaperEngine. Posities, kosten, onderpand, stops, risicobudget en opslag blijven gedeeld.
 
@@ -6,7 +6,9 @@ Een cartridge bevat beslisregels, een stabiele ID, eigen versie, uitleg, relevan
 
 Kies op het hoofdscherm één van zes LONG/SHORT-cartridges en klik **Test cartridge**. Alle cartridges gebruiken hetzelfde vaste plan: drie kalenderjaren, uurcandles, top tien en kostenstress. Er zijn geen instelbare parameters in deze bediening. De nieuwe cartridges zijn alleen beschikbaar in dit vaste plan. De oude bediening op `/archief` behoudt de vier oorspronkelijke cartridges en haar eerdere onderzoeksfuncties.
 
-`PRIMARY_IDS` bepaalt de zes zichtbare keuzes; de volledige registry bewaart ook de zes oude implementaties voor referentie en oude rapporten. `cartridge_slow_both.py` breidt de twee v1.0 LONG-cartridges uit zonder hun bestanden te veranderen. `long_reference` verklaart de afzonderlijk te testen oorspronkelijke LONG-cartridge. De vier nieuwe modules bevatten ieder een eigen `Cartridge`: Supertrend, Bollinger, Keltner en mislukte uitbraak. [Vaste regels v0.15](HYPOTHESEN_V015.md).
+`PRIMARY_IDS` bepaalt de zes zichtbare keuzes; de volledige registry bewaart ook oude implementaties voor referentie en oude rapporten. `cartridge_slow_both.py` breidt de twee v1.0 LONG-cartridges uit zonder hun bestanden te veranderen. `long_reference` verklaart de afzonderlijk te testen oorspronkelijke LONG-cartridge. Supertrend en Keltner blijven actief; Aroon en KAMA vervangen Bollinger en mislukte uitbraak. [Vaste regels v0.15](HYPOTHESEN_V015.md) en [v0.16](HYPOTHESEN_V016.md).
+
+`PaperEngine(..., risk_per_trade=...)` accepteert intern uitsluitend 0.0025, 0.005 of 0.01. De standaard blijft 0.0025 en oude uitvoering blijft numeriek identiek. Dit is geen nieuw API-invoerveld of strategieparameter. `run_test` voegt automatisch `risk_scenarios` toe: standaard volledige test hergebruiken, twee hogere risico's opnieuw uitvoeren met normale en dubbele kosten. Drieperiode-criteria en oorspronkelijke LONG-referenties blijven op standaardrisico. Hogere scenario's hebben geen eigen geschiktheidslabel.
 
 De drie referenties blijven dezelfde drie referenties en de Botarena blijft negen profielen bevatten. Het verplaatsen van code maakt geen strategie winstgevender. Twaalf volledige LONG/SHORT/BOTH-uitkomsten zijn vergeleken met vóór de omzetting vastgelegde v0.10-uitkomsten en blijven identiek.
 
