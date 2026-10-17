@@ -189,7 +189,7 @@ const c=cartridgeCatalog.find(x=>x.id===$('strategy').value);if(!c)return;
 for(const id of parameterFields){const label=$(id).closest('label');label.hidden=!['stop_atr','target_atr',...c.parameters].includes(id);}
 }
 async function loadCartridges(){
-const data=await get('/api/cartridges');cartridgeCatalog=data.cartridges;
+const data=await get('/api/cartridges');cartridgeCatalog=data.cartridges.filter(c=>['ema','rsi','breakout','pullback'].includes(c.id));
 const previous=$('strategy').value;$('strategy').replaceChildren();$('cartridgeCards').replaceChildren();
 for(const c of cartridgeCatalog){
 if(!c.protocol_only){const o=document.createElement('option');o.value=c.id;o.textContent=c.name;$('strategy').appendChild(o);}

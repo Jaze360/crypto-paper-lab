@@ -104,6 +104,9 @@ def archive_files(raw):
                       "cartridge_ema.py","cartridge_rsi.py","cartridge_breakout.py","cartridge_pullback.py",
                       "static/lab.html","static/lab.js","static/lab.css"}
             if not required.issubset(result):raise ValueError("Update mist bestanden voor het cartridgelab.")
+        if tuple(map(int,release.split(".")))>=(0,14,0):
+            if not {"cartridge_momentum63.py","cartridge_donchian55.py","slow_features.py"}.issubset(result):
+                raise ValueError("Update mist de langzame cartridges.")
         return result
 
 def stage():

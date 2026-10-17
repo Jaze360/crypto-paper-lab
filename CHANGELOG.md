@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.14.0
+- Twee nieuwe cartridges: langzaam 63-daags momentum en 55/20-daagse kanaaluitbraak, beide LONG/cash met vooraf vastgelegde regels.
+- Volledige UTC-dagen voor signalen en ATR, causale beschikbaarheid en uitvoering/beschermende stops op uurcandles.
+- Dezelfde drie kalenderjaren, coins, kostenstress en harde risicolimieten; geen automatische parameterkeuze.
+- Permanente risicostop met eerste datum prominent in oude en nieuwe resultaten, inclusief uitleg over resterende dataverwerking.
+- Registry bewaart extra featuremodules in bronvingerafdruk; updater vereist alle nieuwe modules.
+- Bestaande vier cartridges en oude onderzoeken blijven beschikbaar. Geen live orders.
+
 ## 0.13.0
 - Nieuw hoofdscherm: alleen cartridge kiezen en de vaste test starten.
 - Eén geselecteerde cartridge, drie kalenderjaren met gesloten uurcandles en tien coins.

@@ -25,7 +25,7 @@ def test_catalog_contract_and_request_validation():
     client=TestClient(app.app);r=client.get('/api/cartridges')
     assert r.status_code==200 and r.json()['paper_only'] is True
     items={c['id']:c for c in r.json()['cartridges']}
-    assert set(items)=={'ema','rsi','breakout','pullback'}
+    assert {'ema','rsi','breakout','pullback'}<=set(items)
     assert items['breakout']['requires_volume']
     assert items['pullback']['protocol_only']
     assert items['pullback']['fixed']['max_holding_bars']==30

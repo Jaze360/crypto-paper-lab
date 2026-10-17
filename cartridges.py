@@ -7,8 +7,10 @@ from cartridge_ema import CARTRIDGE as EMA
 from cartridge_rsi import CARTRIDGE as RSI
 from cartridge_breakout import CARTRIDGE as BREAKOUT
 from cartridge_pullback import CARTRIDGE as PULLBACK
+from cartridge_momentum63 import CARTRIDGE as MOMENTUM63
+from cartridge_donchian55 import CARTRIDGE as DONCHIAN55
 
-_items=(EMA,RSI,BREAKOUT,PULLBACK)
+_items=(EMA,RSI,BREAKOUT,PULLBACK,MOMENTUM63,DONCHIAN55)
 if len({c.id for c in _items})!=len(_items):raise ValueError("Dubbele cartridge-ID")
 REGISTRY=MappingProxyType({c.id:c for c in _items})
 
@@ -19,7 +21,7 @@ def get_cartridge(strategy):
 @lru_cache(maxsize=32)
 def _fingerprint(strategy):
     c=get_cartridge(strategy);root=Path(__file__).parent
-    files=(c.module+".py","cartridge_api.py","cartridges.py","strategies.py","engine.py")
+    files=(c.module+".py","cartridge_api.py","cartridges.py","strategies.py","engine.py",*c.dependencies)
     return tuple((name,hashlib.sha256((root/name).read_bytes()).hexdigest()) for name in files)
 
 def manifest(strategy):

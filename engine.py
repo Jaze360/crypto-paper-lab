@@ -40,6 +40,7 @@ class PaperEngine:
             self.parameters=config(dict(self.parameters.model_dump(),**dict(self.cartridge.fixed)))
         self.cartridge_manifest=manifest(strategy)
         self.d=add_indicators(candles,self.parameters)
+        if self.cartridge.prepare is not None:self.d=self.cartridge.prepare(self.d,self.parameters)
         self.rows=list(self.d.itertuples(index=False))
         self.entry_signals,self.exit_signals=signals(self.d,strategy)
         self.short_entry_signals,self.short_exit_signals=short_signals(self.d,strategy)

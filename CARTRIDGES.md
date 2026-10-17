@@ -1,10 +1,10 @@
-# Strategiecartridges — v0.11
+# Strategiecartridges — v0.14
 
 Een cartridge bevat beslisregels, een stabiele ID, eigen versie, uitleg, relevante parameters, warm-up, LONG/SHORT-signalen, instapreden en eventuele vaste regels of volumevereisten. Alle cartridges gebruiken dezelfde PaperEngine. Posities, kosten, onderpand, stops, risicobudget en opslag blijven gedeeld.
 
 ## Gebruik
 
-Klik **Cartridges** bovenaan het dashboard. Kies EMA, RSI of breakout voor een volgende afzonderlijke test. De keuze verandert de geselecteerde strategie en toont alleen haar relevante strategieparameters. Je bestaande instellingen worden niet gereset en er start niets automatisch. Klik daarna **Start onderzoek**. De vaste trend-pullbackcartridge opent het bestaande BTC/ETH/SOL-protocol; die regels blijven vast.
+Kies op het hoofdscherm één van zes cartridges en klik **Test cartridge**. Alle cartridges gebruiken hetzelfde vaste plan: drie kalenderjaren, uurcandles, top tien en kostenstress. Er zijn geen instelbare parameters in deze bediening. De twee langzame LONG/cash-cartridges zijn alleen beschikbaar in dit vaste plan. De oude bediening op `/archief` behoudt de vier oorspronkelijke cartridges en haar eerdere onderzoeksfuncties.
 
 De drie referenties blijven dezelfde drie referenties en de Botarena blijft negen profielen bevatten. Het verplaatsen van code maakt geen strategie winstgevender. Twaalf volledige LONG/SHORT/BOTH-uitkomsten zijn vergeleken met vóór de omzetting vastgelegde v0.10-uitkomsten en blijven identiek.
 
@@ -21,6 +21,8 @@ Een nieuwe replay met vastgelegde vingerafdruk wordt niet hervat als cartridge o
 - `engine.py`: uitvoering op de volgende candle-open, risico en boekhouding.
 
 Een nieuwe cartridge definieert één `Cartridge` en wordt expliciet geïmporteerd en geregistreerd in `cartridges.py`. De normale API-keuze en bibliotheek worden uit de registry afgeleid. Een nieuwe cartridge met bestaande indicatoren hoeft de engine niet te veranderen. Nieuwe indicatoren vereisen uitbreiding van de gedeelde indicatorlaag en causaliteitstests. Nieuwe instelbare parameters vereisen een gecontroleerde schema- en formulieruitbreiding. Kostenmodellen, multi-assetposities en derivatenfunding zijn afzonderlijke enginewijzigingen; een cartridge kan die niet declaratief toevoegen.
+
+Het optionele `prepare`-contract voegt causale features toe vóór het maken van signalen. `dependencies` neemt aanvullende bronmodules op in de vingerafdruk; `directions` beschrijft ondersteunde richtingen. De twee nieuwe modules gebruiken `slow_features.py`: alleen volledige UTC-dagen, bekend na het sluiten van hun laatste uurcandle. Hun ATR is een dagelijkse Wilder-ATR(14); uitvoering blijft op het volgende uur. De vier bestaande cartridges gebruiken deze hook niet en behouden hun uurindicatoren en handelsregels. Zie [vaste hypothesen](HYPOTHESEN_LANGZAAM_V1.md).
 
 De referentievergelijking, Botarena en bestaande optimizer blijven bewust begrensd tot hun vooraf vastgelegde cartridges. Nieuwe cartridges gaan daar niet automatisch in mee. Er is geen automatische cartridgekeuze op basis van testwinst.
 

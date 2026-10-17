@@ -26,7 +26,7 @@ def fixed_plan(cartridge,cutoff=None):
     return {'id':PLAN_ID,'cartridge':manifest(cartridge),'parameters':parameters,'days':days,'interval_minutes':INTERVAL,
             'from':start.isoformat(),'until_exclusive':end.isoformat(),'expected_candles':days*24,
             'capital':CAPITAL,'fee_pct':FEE*100,'slippage_pct':SLIP*100,'short_borrow_daily_pct':.02,
-            'source':'Binance SPOT OHLCV in USDT','directions':'LONG + SHORT','universe_size':10,
+            'source':'Binance SPOT OHLCV in USDT','directions':{'long':'LONG / cash','short':'SHORT / cash','both':'LONG + SHORT'}[parameters['trade_mode']],'universe_size':10,
             'code_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 
 def prepare(candles,plan):
@@ -62,7 +62,7 @@ def evaluate(df,plan,progress=None):
             'period_sample':all(x['metrics']['trades']>=5 and x['stress']['trades']>=5 for x in periods),
             'risk_stop_not_hit':not full['loss_analysis']['first_risk_lock'] and not stress['loss_analysis']['first_risk_lock']}
     consistent=all(checks.values())
-    reason=('Verder paper-onderzoek' if consistent else 'Negatief na kosten' if not checks['positive_full'] else
+    reason=('Verder paper-onderzoek' if consistent else 'Risicostop bereikt' if not checks['risk_stop_not_hit'] else 'Negatief na kosten' if not checks['positive_full'] else
             'Verdwijnt bij dubbele kosten' if not checks['positive_stress'] else 'Te weinig trades' if not checks['enough_trades'] else
             'Risicostop bereikt' if not checks['risk_stop_not_hit'] else 'Niet stabiel over perioden' if not checks['all_periods_positive'] else 'Weinig trades per periode')
     return {'metrics':full,'stress':stress,'periods':periods,'consistent':consistent,'checks':checks,'assessment':reason,
