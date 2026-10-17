@@ -152,3 +152,38 @@ def bot_arena(df,capital,fee,slip,parameters=None,progress=None):
             "Minder dan 30 trades is onvoldoende bewijs; een positieve uitkomst of kostenstress bewijst geen toekomstige winst.",
             "Een profiel gebruiken laadt de vastgelegde strategie en richting in het formulier. Er start geen handel of nieuwe test.",
             "Simulatie zonder hefboom. Shorts gebruiken het bestaande vereenvoudigde onderpand- en leenkostenmodel."]}
+
+
+def filter_experiment(df,strategy,capital,fee,slip,parameters=None,progress=None):
+    """Predefined ablation. No candidate scoring or selection on any test window."""
+    n=len(df)
+    if n<600:raise ValueError("Filteronderzoek vereist minimaal 600 gesloten candles; kies langere historie.")
+    base=config(parameters).model_dump()
+    base.update(trend_filter=False,cooldown_bars=0)
+    specs=[("basis","Huidige regels",dict(base)),
+           ("rust","12 candles wachten",dict(base,cooldown_bars=12)),
+           ("trend","Wachttijd + trendfilter",dict(base,cooldown_bars=12,trend_filter=True))]
+    bounds=[round(n*x) for x in (.4,.533333333,.666666667,.8,1)]
+    periods=[("ontwikkeling","Ontwikkeling · eerste 40%",0,bounds[0])]+[
+        ("venster"+str(i+1),"Testvenster "+str(i+1),l,r) for i,(l,r) in enumerate(zip(bounds[:3],bounds[1:4]))]+[
+        ("laatste","Laatste 20%",bounds[3],bounds[4])]
+    variants=[]
+    for key,label,p in specs:
+        results=[]
+        for period,name,left,right in periods:
+            if progress:progress(label+": "+name)
+            normal=run(df,strategy,capital,fee,slip,left,right,p)
+            stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),left,right,stress_parameters(p))
+            results.append({"id":period,"label":name,"start":left,"end":right,
+                            "from":df.iloc[left].time.isoformat(),"to":df.iloc[right-1].time.isoformat(),
+                            "metrics":normal["metrics"],"stress":stress["metrics"]})
+        variants.append({"id":key,"label":label,"parameters":p,"periods":results})
+    return {"strategy":strategy,"variants":variants,"notes":[
+        "Vooraf vaste hypothesen: basis; 12 candles wachten na iedere exit; dezelfde wachttijd plus EMA200-trendfilter. Geen optimalisatie of winnaarselectie.",
+        "LONG alleen als de vorige gesloten candle boven EMA200 sluit én EMA200 hoger is dan 20 candles eerder. SHORT precies omgekeerd. Ontbrekende warm-up blokkeert instap.",
+        "De 12 candles direct na een exit worden overgeslagen; de eerstvolgende instap mag op candle 13. Dit verlaagt niet noodzakelijk het totale aantal trades door veranderde posities en risicostops.",
+        "Alleen entries worden gefilterd. Stops, targets, signal exits en harde risicolimieten veranderen niet. Iedere variant en periode start met nieuw kapitaal en zonder positie.",
+        "Eerste 40% is ontwikkelcontext, daarna drie gescheiden testvensters tot 80% en laatste 20%. Parameters worden nergens gekozen op resultaten.",
+        "Dezelfde data zijn al bekeken: de laatste 20% is geen nieuw ongezien bewijs. Variantscores vormen geen samengestelde rekening en verschillen in blootstelling.",
+        "Dubbele kosten kunnen eerder een risicostop activeren; vergelijk ook blokkades en tradeaantallen, niet alleen eindrendement.",
+        "EMA200 en de wachttijd zijn in candles, niet in vaste uren. Alle indicatorbeslissingen gebruiken uitsluitend eerdere gesloten candles."]}

@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.8.0
+- Verliesanalyse met bruto/netto, kosten, stopfrequentie, duur en accountaansluiting.
+- Eerste permanente entry-stop en dagelijkse/permanente blokkades plus geblokkeerde instapsignalen zichtbaar.
+- Vaste vergelijking van basis, twaalf candles wachttijd en wachttijd + EMA200-trendfilter.
+- Ontwikkelcontext, drie testvensters, laatste 20% en kostenstress zonder parameterselectie.
+- Filters optioneel bij overige tests; bestaande regels standaard behouden.
+- Richting zichtbaar in lijst van opgeslagen onderzoeken.
+
 ## 0.7.0
 - Botarena met negen vaste profielen, gelijke data en expliciete kosten.
 - Resultaten, regels en profielhergebruik zonder automatische winnaarselectie.

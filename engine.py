@@ -47,6 +47,9 @@ class PaperEngine:
         self.peak=capital;self.locked=False;self.current_day=None;self.start_day_equity=capital
         self.equity_points=[];self.trades=[];self.events=[]
         self.last_price=None;self.max_dd=0.
+        self.last_exit_index=None;self.first_risk_lock=None
+        self.risk_counts={"permanent_block_bars":0,"daily_block_bars":0,
+                          "blocked_permanent":0,"blocked_daily":0,"blocked_trend":0,"blocked_cooldown":0,"entry_candidates":0}
 
     def equity(self,mark):
         p=self.position
@@ -81,6 +84,7 @@ class PaperEngine:
         self.events.append({"type":("SELL LONG" if p.side=="long" else "COVER SHORT")+" (PAPER)",
                             "time":stamp,"price":fill,"reason":reason})
         self.position=None
+        self.last_exit_index=self.idx
 
     def _entry(self,i,stamp,raw_open,atr,side="long"):
         if self.position is not None or not math.isfinite(atr) or atr<=0:return
@@ -117,7 +121,11 @@ class PaperEngine:
     def update_risk(self,mark):
         eq=self.equity(mark);self.peak=max(self.peak,eq)
         self.max_dd=max(self.max_dd,(self.peak-eq)/self.peak)
-        if eq<=0 or self.max_dd>=MAX_DRAWDOWN:self.locked=True
+        if eq<=0 or self.max_dd>=MAX_DRAWDOWN:
+            if not self.locked:
+                self.first_risk_lock={"time":self.rows[min(self.idx,self.end-1)].time.isoformat(),
+                                      "candle":self.idx-self.start+1,"reason":"Vermogen niet positief" if eq<=0 else "10% drawdown bereikt"}
+            self.locked=True
         return eq
 
     def step(self,steps=1,snapshot=True):
@@ -140,8 +148,20 @@ class PaperEngine:
             daily_block=eq<self.start_day_equity*(1-MAX_DAILY_LOSS)
             long_signal=bool(i>0 and self.entry_signals[i-1] and self.parameters.trade_mode in ("long","both"))
             short_signal=bool(i>0 and self.short_entry_signals[i-1] and self.parameters.trade_mode in ("short","both"))
-            if not self.position and not self.locked and not daily_block and long_signal!=short_signal:
-                self._entry(i,stamp,float(row.open),float(self.rows[i-1].atr),"long" if long_signal else "short")
+            if daily_block:self.risk_counts["daily_block_bars"]+=1
+            if not self.position and long_signal!=short_signal:
+                self.risk_counts["entry_candidates"]+=1
+                side="long" if long_signal else "short"
+                previous=self.rows[i-1]
+                trend_ok=(math.isfinite(previous.trend_ema) and math.isfinite(previous.trend_slope) and
+                          (previous.close>previous.trend_ema and previous.trend_slope>0 if side=="long" else
+                           previous.close<previous.trend_ema and previous.trend_slope<0))
+                if self.locked:self.risk_counts["blocked_permanent"]+=1
+                elif daily_block:self.risk_counts["blocked_daily"]+=1
+                elif self.parameters.trend_filter and not trend_ok:self.risk_counts["blocked_trend"]+=1
+                elif self.parameters.cooldown_bars and self.last_exit_index is not None and i-self.last_exit_index<=self.parameters.cooldown_bars:
+                    self.risk_counts["blocked_cooldown"]+=1
+                else:self._entry(i,stamp,float(row.open),float(previous.atr),side)
             exposure=self.position.qty*float(row.open)/max(self.equity(float(row.open)),1e-9) if self.position else 0.
             if self.position:
                 self.active_bars+=1;self.position.held_bars+=1
@@ -156,6 +176,7 @@ class PaperEngine:
                 if stop_hit:self._close(stamp,p.stop,"Stop-loss")
                 elif target_hit:self._close(stamp,p.target,"Take-profit")
             eq=self.update_risk(float(row.close))
+            if self.locked:self.risk_counts["permanent_block_bars"]+=1
             if self._record:self.equity_points.append({"time":stamp,"equity":round(eq,4),"close":float(row.close)})
             self.idx+=1;self.last_price=float(row.close)
         return self.snapshot() if snapshot else None
@@ -179,11 +200,34 @@ class PaperEngine:
                      max_exposure_pct=round(100*self.max_exposure,3),
                      avg_holding_bars=round(float(np.mean(self.holding_bars)),2) if self.holding_bars else None,
                      total_borrow_cost=round(self.total_borrow,6))
+        stats["loss_analysis"]=self.loss_analysis(eq)
         return {"strategy":self.strategy,"completed":self.idx>=self.end,"progress":self.idx-self.start,"total":self.end-self.start,
                 "initial_capital":self.capital,"equity":round(eq,2),"return_pct":round((eq/self.capital-1)*100,3),
                 "cash":round(self.cash,2),"reserved_collateral":round(self.position.collateral,2) if self.position else 0.,"max_drawdown_pct":round(self.max_dd*100,3),"locked":self.locked,
                 "open_position":asdict(self.position) if self.position else None,"parameters":self.parameters.model_dump(),
                 "metrics":stats,"equity_curve":self.equity_points,"trades":self.trades,"events":self.events[-15:]}
+
+    def loss_analysis(self,eq):
+        closed=sum(t["pnl"] for t in self.trades)
+        fee=sum(t["fees"] for t in self.trades);borrow=sum(t["borrow_cost"] for t in self.trades)
+        slip=sum(t["slippage_cost"] for t in self.trades)
+        gross=sum(t["gross_before_slippage"] for t in self.trades)
+        stops=[t for t in self.trades if t["reason"] in ("Stop-loss","Gap voorbij stop")]
+        open_net=0.
+        if self.position:
+            p=self.position;mark=self.last_price or float(self.rows[self.start].open)
+            open_net=(mark-p.entry)*p.qty*(1 if p.side=="long" else -1)-p.fee_paid-p.borrow_paid
+        return {"closed_gross_before_costs":round(gross,6),"closed_commissions":round(fee,6),
+                "closed_slippage":round(slip,6),"closed_borrow":round(borrow,6),
+                "closed_total_costs":round(fee+slip+borrow,6),"closed_net":round(closed,6),
+                "stop_trades":len(stops),"stop_pct":round(100*len(stops)/len(self.trades),2) if self.trades else None,
+                "stop_net":round(sum(t["pnl"] for t in stops),6),
+                "avg_holding_bars":round(float(np.mean(self.holding_bars)),2) if self.holding_bars else None,
+                "account_pnl":round(eq-self.capital,6),"open_net_marked":round(open_net,6),
+                "reconciliation_gap":round(eq-self.capital-closed-open_net,6),
+                "first_risk_lock":self.first_risk_lock,"risk_counts":dict(self.risk_counts),
+                "note":"Bruto vóór kosten is een uitsplitsing van werkelijk uitgevoerde trades, geen aparte kosteloze backtest. Open netto is mark-to-market na instapkosten en leenkosten; zonder toekomstige uitstapkosten. Het aansluitverschil bevat afronding van het journal. Blokkadereden telt alleen bij een vlakke positie en één geldig richtingssignaal, met prioriteit risico, dagstop, trend, wachttijd. Dagstop- en permanente blokkadecandles kunnen overlappen."}
+
 
 def metrics(trades,capital,equity,max_dd):
     profits=[float(t["pnl"]) for t in trades];wins=[p for p in profits if p>0];losses=[p for p in profits if p<0]

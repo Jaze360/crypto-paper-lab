@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, model_validator, ConfigDict
 STRATEGIES={"ema":"EMA trendvolgend","rsi":"RSI herstel","breakout":"Breakout + candlevolume"}
 class StrategyConfig(BaseModel):
     model_config=ConfigDict(extra="forbid")
+    trend_filter:bool=False
+    cooldown_bars:int=Field(default=0,ge=0,le=100)
     trade_mode:Literal["long","short","both"]="long"
     short_borrow_daily_pct:float=Field(default=.02,ge=0,le=1,allow_inf_nan=False)
     ema_fast:int=Field(default=8,ge=3,le=100)
@@ -36,6 +38,8 @@ def add_indicators(candles, parameters=None):
     d.loc[(loss==0)&(gain>0),"rsi"]=100.
     d.loc[(loss==0)&(gain==0),"rsi"]=50.
     tr=pd.concat([d.high-d.low,(d.high-close.shift()).abs(),(d.low-close.shift()).abs()],axis=1).max(axis=1)
+    d["trend_ema"]=close.ewm(span=200,adjust=False,min_periods=200).mean()
+    d["trend_slope"]=d["trend_ema"]-d["trend_ema"].shift(20)
     d["atr"]=tr.ewm(alpha=1/14,adjust=False,min_periods=14).mean()
     d["prior_high20"]=d.high.shift().rolling(p.breakout_period,min_periods=p.breakout_period).max()
     d["prior_low20"]=d.low.shift().rolling(p.breakout_period,min_periods=p.breakout_period).min()

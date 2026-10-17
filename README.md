@@ -1,6 +1,16 @@
-# Crypto Paper Lab — v0.7
+# Crypto Paper Lab — v0.8
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.8: verliesanalyse en vaste filtertest
+
+Kies **Verliesanalyse + trendfilter testen** bij het onderzoekstype (minimaal 600 gesloten candles). De gekozen strategie en handelsrichting worden met drie vooraf vaste varianten getest: huidige regels, twaalf candles wachten na iedere exit, en dezelfde wachttijd met EMA200-filter. Er is geen optimalisatie of automatische winnaar. De eerste 40% is ontwikkelcontext, gevolgd door drie gescheiden testvensters tot 80% en een laatste periode van 20%. Iedere periode start met leeg fictief account. Eerder bekeken testdata zijn geen nieuw ongezien bewijs.
+
+Trendfilter: LONG vereist dat de vorige gesloten candle boven EMA200 sluit en EMA200 hoger is dan twintig candles eerder; SHORT vereist beide omgekeerd. Ontbrekende warm-up blokkeert instap. De twaalf candles direct na een exit worden overgeslagen; op candle dertien mag een nieuw signaal instappen. Alleen entries worden gefilterd; exitregels en risicolimieten blijven gelijk. De basisvariant zet eventuele ingestelde filters expliciet uit. Er is geen garantie dat minder signalen ook minder totale trades opleveren, omdat posities en risicostops het vervolg veranderen.
+
+Bij **Verliesanalyse & long/short** kies je iedere normale of kostenstressperiode. Nieuw: bruto vóór kosten, afzonderlijke kosten, netto gesloten trades, stopfrequentie en stopresultaat, gemiddelde duur, accountaansluiting inclusief open positie, eerste permanente entry-stop en aantallen geblokkeerde signalen. De bruto-uitsplitsing is geen kosteloze backtest; slippage wordt niet dubbel afgetrokken. Instapblokkades tellen alleen geldige enkelvoudige signalen bij lege positie en krijgen één reden volgens de prioriteit risico, dagstop, trend en wachttijd. Blokkadecandles zijn aparte aantallen en kunnen overlappen.
+
+Nieuwe onderzoeken bevatten de analyse automatisch. Oude rapporten blijven leesbaar; ontbrekende blokkades worden niet verzonnen. Voor nieuwe details voer je ze opnieuw uit. De filters zijn ook optioneel instelbaar bij **Instellingen verfijnen**, standaard uit. Instellingen en replayparameters worden bewaard. Bestaande replayregels blijven bij standaardfilters gelijk.
 
 ## Nieuw in v0.7: Botarena
 
