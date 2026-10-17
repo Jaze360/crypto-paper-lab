@@ -228,6 +228,13 @@ def import_csv(text, coin):
 
 BINANCE_SYMBOLS=dict(zip(COINS,["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","AVAXUSDT","LINKUSDT","DOTUSDT","LTCUSDT","BCHUSDT","UNIUSDT"]))
 
+# Explicit CoinGecko IDs; do not infer exchange identities from ambiguous ticker symbols.
+BINANCE_SYMBOLS.update({"binancecoin":"BNBUSDT","tron":"TRXUSDT","zcash":"ZECUSDT","hyperliquid":"HYPEUSDT","stellar":"XLMUSDT","sui":"SUIUSDT",
+    "the-open-network":"TONUSDT","hedera-hashgraph":"HBARUSDT","shiba-inu":"SHIBUSDT","aptos":"APTUSDT",
+    "near":"NEARUSDT","internet-computer":"ICPUSDT","ethereum-classic":"ETCUSDT","aave":"AAVEUSDT",
+    "filecoin":"FILUSDT","cosmos":"ATOMUSDT","arbitrum":"ARBUSDT","optimism":"OPUSDT",
+    "pepe":"PEPEUSDT","ondo-finance":"ONDOUSDT","render-token":"RENDERUSDT"})
+
 class HistoricalProvider:
     """Paginated public OHLCV. Dedicated data-only domain; no credentials or trading routes."""
     def candles(self,coin="bitcoin",days=1095,interval=240,progress=None):

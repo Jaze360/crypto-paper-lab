@@ -15,6 +15,7 @@ from market_data import (CoinGeckoProvider, KrakenProvider, HistoricalProvider, 
 from engine import PaperEngine, run_backtest, direction_breakdown
 from strategies import STRATEGIES, StrategyConfig
 from cartridges import catalog,get_cartridge
+from universe import snapshot as universe_snapshot
 import storage
 from secrets_store import get_key, save_key
 import updater
@@ -112,6 +113,11 @@ def status():
             "coingecko_configured":configured,"strategies":STRATEGIES,
             "coins":{k:v[0] for k,v in COINS.items()},"storage":str(storage.data_dir()),
             "supported_directions":["long","short","both"],"risk_per_trade_pct":.25,"max_exposure_pct":25,"max_daily_loss_pct":1,"max_drawdown_lock_pct":10}
+
+@app.get("/api/universe")
+def universe_preview(size:Literal[5,10]=10):
+    try:return universe_snapshot(size)
+    except (ValueError,DataError) as exc:raise HTTPException(503,str(exc)) from exc
 
 @app.get("/api/cartridges")
 def cartridge_catalog():
@@ -288,8 +294,9 @@ _jobs_lock=RLock()
 class ResearchJob(BaseModel):
     model_config=ConfigDict(extra="forbid")
     params:Params=Field(default_factory=Params)
-    mode:Literal["compare","walkforward","batch","arena","filters","tune","protocol"]="walkforward"
+    mode:Literal["compare","walkforward","batch","arena","filters","tune","protocol","top"]="walkforward"
     coins:list[str]=Field(default_factory=list,max_length=4)
+    universe_size:Literal[5,10]=10
 
 def execute_job(job_id,request):
     def progress(message):
@@ -301,29 +308,42 @@ def execute_job(job_id,request):
             progress("Strategieën vergelijken.")
             payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters)}
             kind="research"
-        elif request.mode=="protocol":
+        elif request.mode in ("protocol","top"):
+            universe=universe_snapshot(request.universe_size) if request.mode=="top" else None
+            cohort=[x["id"] for x in universe["selected"]] if universe else COHORT
             p=p.model_copy(update={"source":"historical","days":1095,"interval":240,"strategy":"ema",
                                    "parameters":StrategyConfig(**reference_params(p.parameters.short_borrow_daily_pct)),"dataset_id":None})
             request.params=p
             datasets={};errors={};results=[]
-            for coin in COHORT:
+            for coin in cohort:
                 item=p.model_copy(update={"coin":coin})
-                try:datasets[coin]=get_data(item,lambda m:progress(coin+": "+m))
+                try:
+                    if universe:
+                        progress("Topselectie: "+coin)
+                        df=HistoricalProvider().candles(coin,1095,240,lambda m:progress(coin+": "+m))
+                        if len(df)<1200:raise DataError("Te weinig gesloten candles voor het vaste protocol (minimaal 1.200).")
+                        if df.time.max()<pd.Timestamp.now(tz="UTC").floor("4h")-pd.Timedelta(hours=8):raise DataError("Geen recente spotcandles; mogelijk niet meer genoteerd. Coin niet vervangen.")
+                        datasets[coin]=df
+                    else:datasets[coin]=get_data(item,lambda m:progress(coin+": "+m))
                 except (ValueError,DataError) as exc:errors[coin]=str(exc)
             common_left=max((d.time.min() for d in datasets.values()),default=None)
             common_right=min((d.time.max() for d in datasets.values()),default=None)
-            for coin in COHORT:
+            for coin in cohort:
                 if coin in errors:
                     results.append({"coin":coin,"error":errors[coin]});continue
                 item=p.model_copy(update={"coin":coin});df=datasets[coin]
                 df=df[(df.time>=common_left)&(df.time<=common_right)].reset_index(drop=True)
                 try:
                     result=protocol_coin(df,item.capital,item.fee_pct,item.slippage_pct,item.parameters.short_borrow_daily_pct,lambda m:progress(coin+": "+m))
+                    if universe:
+                        result["notes"]=[n for n in result["notes"] if not n.startswith("Vooraf vastgelegde coins")]
+                        result["notes"].append("Dit is een actuele topselectie volgens marketcap en volume; geen historische top per testdatum. De bewaarde selectiesnapshot bevat alle gekozen coins, rangen en uitsluitingen.")
                     result["notes"].append("Beschikbare coins zijn begrensd tot dezelfde begin- en eindtijd. Gaten kunnen aantallen en exacte splits nog laten verschillen.")
                     results.append({"coin":coin,"meta":summary(df,item),"protocol":result})
                 except (ValueError,DataError) as exc:results.append({"coin":coin,"error":str(exc)})
-            if not any("protocol" in x for x in results):raise ValueError("Geen coin kon worden getest: "+"; ".join(x["coin"]+": "+x["error"] for x in results))
+            if not universe and not any("protocol" in x for x in results):raise ValueError("Geen coin kon worden getest: "+"; ".join(x["coin"]+": "+x["error"] for x in results))
             payload={"protocol_batch":results,"params":p.model_dump()}
+            if universe:payload["universe"]=universe
             kind="protocol"
         elif request.mode=="tune":
             df=get_data(p,progress)

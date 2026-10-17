@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.12.0
+- Standaardonderzoek op actuele top tien of vijf volgens gelijke weging van cap- en volumerang binnen de eerste honderd coins op marketcap.
+- Stablecoins en verpakte/gestakete varianten gefilterd; volledige selectiesnapshot, uitsluitingen en bronvelden bewaard.
+- Vier cartridges met hetzelfde protocol, gezamenlijke datagrenzen en expliciete fouten zonder vervanging.
+- Ook volledig mislukte topselecties blijven als rapport bewaard; geen vaste fallbacklijst bij bronproblemen.
+- Extra expliciete historische symboolkoppelingen; geen live routes toegevoegd.
+- 128 tests geslaagd, inclusief rangschikking, volumewerking, cachetijd, bronfouten en mislukte coins.
+
 ## 0.11.0
 - Vier ingebouwde strategieën als afzonderlijke cartridges met expliciete registry en interface.
 - Cartridgebibliotheek, keuze voor volgende test en alleen relevante strategieparameters zichtbaar.

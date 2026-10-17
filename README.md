@@ -1,6 +1,12 @@
-# Crypto Paper Lab — v0.11
+# Crypto Paper Lab — v0.12
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.12: tests op top 5 / 10 coins
+
+Het standaardonderzoek **Cartridges testen · top 5 / 10 coins** gebruikt een actuele gecombineerde rangschikking op marktkapitalisatie en 24-uursvolume. Tien coins is standaard; vijf is ook mogelijk. Stablecoins en verpakte/gestakete varianten worden gefilterd. Iedere gekozen coin, selectie-input, rang, uitsluiting en datafout blijft bewaard. Geen vervanging van mislukte coins. Alle vier bestaande cartridges worden met hetzelfde vaste protocol getest.
+
+De huidige top op historische candles geeft selectiebias en is geen historische top per testdatum. De feitelijke gezamenlijke periode hangt af van beschikbare historie. Zie [exacte selectie, datagrenzen en beperkingen](TOPSELECTIE.md). CoinGecko verzorgt de ranglijst; Binance spot de historische candles. Publieke toegang wordt geprobeerd zonder sleutel; bij bronproblemen is lokaal een CoinGecko-sleutel in te stellen. Geen verzonnen ranglijst als de bron faalt.
 
 ## Nieuw in v0.11: strategiecartridges
 

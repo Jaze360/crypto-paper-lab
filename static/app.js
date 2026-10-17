@@ -69,7 +69,7 @@ if(item.meta.gaps_detected)notes.unshift(item.coin+': gaten in data gevonden; we
 for(const note of notes){const p=document.createElement('p');p.textContent=note;$('walkNotes').appendChild(p)}}
 for(const note of payload.notes??[]){const p=document.createElement('p');p.textContent=note;$('walkNotes').appendChild(p)}}
 async function pollResearch(id){setLoading(true);try{while(true){const state=await get('/api/research/jobs/'+id);setStatus(state.message);if(state.status==='failed')throw Error(state.message);if(state.status==='done'){localStorage.removeItem('paperResearchJob');const r=await get('/api/runs/'+state.run_id);applyParams(r.params);if(r.kind==='protocol')renderProtocol(r.payload);else if(r.kind==='tune')renderTune(r.payload);else if(r.kind==='filters')renderFilters(r.payload);else if(r.kind==='arena')renderArena(r.payload);else if(r.kind==='research')renderResearch(r.payload);else renderWalk(r.payload);await refreshRuns();return;}await new Promise(resolve=>setTimeout(resolve,1500));}}catch(e){localStorage.removeItem('paperResearchJob');setStatus(e.message,true);}finally{setLoading(false);}}
-async function startResearch(mode){setLoading(true);try{const coins=Array.from($('batchCoins').selectedOptions).map(o=>o.value);if(mode==='batch'&&(!coins.length||coins.length>4))throw Error('Kies 1 tot 4 coins.');const job=await post('/api/research/jobs',{params:params(),mode,coins:mode==='batch'?coins:[]});localStorage.setItem('paperResearchJob',job.id);await pollResearch(job.id);}catch(e){setStatus(e.message,true);setLoading(false);}}
+async function startResearch(mode){setLoading(true);try{const coins=Array.from($('batchCoins').selectedOptions).map(o=>o.value);if(mode==='batch'&&(!coins.length||coins.length>4))throw Error('Kies 1 tot 4 coins.');const job=await post('/api/research/jobs',{params:params(),mode,universe_size:Number($('topCount').value),coins:mode==='batch'?coins:[]});localStorage.setItem('paperResearchJob',job.id);await pollResearch(job.id);}catch(e){setStatus(e.message,true);setLoading(false);}}
 $('btnWalk').addEventListener('click',()=>startResearch('walkforward'));
 $('btnBatch').addEventListener('click',()=>startResearch('batch'));
 
@@ -92,9 +92,9 @@ $('btnBreakdownExport').addEventListener('click',()=>{const r=breakdownReports[N
 
 
 // One clear entry point; the established actions keep their validation and storage.
-const testDescriptions={protocol:'Vast onderzoek op 3 jaar BTC, ETH en SOL, 4u. Bevroren referenties versus één trend-pullbackhypothese. Huidige kosten blijven scenario.',tune:'Maximaal 12 varianten, ontwikkeling en validatie, daarna een aparte laatste test. Minimaal 1.200 candles.',filters:'Vergelijk vaste regels met 12 candles wachttijd en een EMA200-trendfilter. Minimaal 600 candles.',arena:'Negen vaste bots op dezelfde data: drie strategieën × LONG, SHORT en BOTH.',backtest:'Een eerste beeld: 70% ontwikkeling en 30% testdata.',research:'Vergelijk EMA, RSI en breakout op dezelfde marktdata.',walk:'Parameters kiezen op eerdere data, daarna opeenvolgende testperioden.',replay:'Speel historische candles af en volg fictieve posities.'};
+const testDescriptions={top:'Vier vaste cartridges op top 5/10 volgens marketcap en volume. Actuele selectie, geen historische top per testdatum.',protocol:'Vast onderzoek op 3 jaar BTC, ETH en SOL, 4u. Bevroren referenties versus één trend-pullbackhypothese. Huidige kosten blijven scenario.',tune:'Maximaal 12 varianten, ontwikkeling en validatie, daarna een aparte laatste test. Minimaal 1.200 candles.',filters:'Vergelijk vaste regels met 12 candles wachttijd en een EMA200-trendfilter. Minimaal 600 candles.',arena:'Negen vaste bots op dezelfde data: drie strategieën × LONG, SHORT en BOTH.',backtest:'Een eerste beeld: 70% ontwikkeling en 30% testdata.',research:'Vergelijk EMA, RSI en breakout op dezelfde marktdata.',walk:'Parameters kiezen op eerdere data, daarna opeenvolgende testperioden.',replay:'Speel historische candles af en volg fictieve posities.'};
 $('testType').addEventListener('change',()=>set('testHelp',testDescriptions[$('testType').value]));
-$('btnRun').addEventListener('click',()=>{const kind=$('testType').value;if(kind==='protocol'){startResearch('protocol');return;}if(kind==='tune'){startResearch('tune');return;}if(kind==='filters'){startResearch('filters');return;}if(kind==='arena'){startResearch('arena');return;}if(kind==='replay')document.querySelector('.replay-panel').open=true;$({backtest:'btnBacktest',research:'btnResearch',walk:'btnWalk',replay:'btnReplay'}[kind]).click()});
+$('btnRun').addEventListener('click',()=>{const kind=$('testType').value;if(kind==='top'){startResearch('top');return;}if(kind==='protocol'){startResearch('protocol');return;}if(kind==='tune'){startResearch('tune');return;}if(kind==='filters'){startResearch('filters');return;}if(kind==='arena'){startResearch('arena');return;}if(kind==='replay')document.querySelector('.replay-panel').open=true;$({backtest:'btnBacktest',research:'btnResearch',walk:'btnWalk',replay:'btnReplay'}[kind]).click()});
 
 function renderArena(payload){$('protocolPanel').hidden=true;$('tunePanel').hidden=true;$('filterPanel').hidden=true;
 $('arenaPanel').hidden=false;$('researchPanel').hidden=true;$('walkPanel').hidden=true;
@@ -164,10 +164,10 @@ const note=document.createElement('div');note.className='ticket-reason';const h=
 
 let protocolPayload=null;
 function renderProtocol(payload){
-protocolPayload=payload;$('protocolPanel').hidden=false;for(const id of ['tunePanel','filterPanel','arenaPanel','researchPanel','walkPanel'])$(id).hidden=true;
+protocolPayload=payload;renderUniverseSnapshot(payload.universe);$('protocolPanel').hidden=false;for(const id of ['tunePanel','filterPanel','arenaPanel','researchPanel','walkPanel'])$(id).hidden=true;
 for(const id of ['ret','dd','trades','exp','timeMarket','avgExposure'])set(id,'—');set('retHint','Kies details van een vaste test');rows([]);warnings([]);$('segments').replaceChildren();chart('equityChart',[],'equity');
 $('protocolCost').replaceChildren();$('protocolNotes').replaceChildren();$('protocolSources').replaceChildren();const valid=payload.protocol_batch.filter(x=>!x.error);
-if(!valid.length){setStatus('Geen marktresultaten beschikbaar',true);return;}
+if(!valid.length){renderProtocolRows();setStatus('Geen marktresultaten beschikbaar; selectie en fouten blijven bewaard.',true);return;}
 for(const s of valid[0].protocol.scenarios){const o=document.createElement('option');o.value=s.id;o.textContent=s.label+' · fee '+asMoney(s.fee_pct)+'% / slippage '+asMoney(s.slippage_pct)+'%';$('protocolCost').appendChild(o)}
 const first=valid[0].protocol;
 for(const text of [...first.notes,first.costs.verdict,...first.costs.limits]){const p=document.createElement('p');p.textContent=text;$('protocolNotes').appendChild(p)}
@@ -205,3 +205,16 @@ card.append(badge,title,desc,tags,button);$('cartridgeCards').appendChild(card);
 }
 $('strategy').addEventListener('change',syncCartridgeFields);
 $('btnCartridges').addEventListener('click',()=>{const panel=$('cartridgeLibrary');panel.hidden=!panel.hidden;$('btnCartridges').setAttribute('aria-expanded',String(!panel.hidden));});
+
+function syncTopCount(){$('topCountLabel').hidden=$('testType').value!=='top';}
+$('testType').addEventListener('change',syncTopCount);syncTopCount();
+function renderUniverseSnapshot(u){
+const box=$('universeReport');box.replaceChildren();box.hidden=!u;set('protocolEyebrow','VAST PROTOCOL · '+(u?'TOP '+u.size:'DRIE COINS')+' · 4-UURSCANDLES');set('protocolIntro',u?'Vier vaste cartridges in LONG/SHORT op de bewaarde topselectie. Maximaal drie jaar; feitelijke gezamenlijke periode hangt af van noteringsdata. Kosten zijn scenario’s, geen volledige derivatenbeursbacktest.':'Vaste LONG/SHORT-hypothese op drie jaar BTC, ETH en SOL. Geen parameterkeuze of automatische winnaar. Kosten zijn scenario’s; dit is geen bevestigde backtest op drie derivatenbeurzen.');
+set('protocolTitle',u?'Cartridges · top '+u.size+' coins':'Trend-pullback tegenover bevroren referenties');if(!u)return;
+$('topCount').value=String(u.size);
+const text=document.createElement('p');text.className='tiny';text.textContent='Selectie opgehaald: '+new Date(u.fetched_at).toLocaleString('nl-BE')+' · '+u.rule_text+' Huidige selectie op historische data: selectiebias. Coins met datafouten worden niet vervangen.';box.appendChild(text);
+const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Geselecteerde coins, marketcap en volume';details.appendChild(summary);
+const scroll=document.createElement('div');scroll.className='scroll';const table=document.createElement('table');const head=table.createTHead().insertRow();['Coin','Marketcap (USD)','24u-volume (USD)','Cap-rang¹','Volume-rang¹','Score','Datamarkt'].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.appendChild(th)});const body=table.createTBody();
+for(const c of u.selected){const tr=body.insertRow();[c.name+' ('+c.symbol+')',asMoney(c.market_cap_usd),asMoney(c.volume_24h_usd),c.cap_rank,c.volume_rank,c.score,c.historical_symbol??'Niet ondersteund; fout blijft zichtbaar'].forEach(v=>tr.insertCell().textContent=v)}scroll.appendChild(table);details.appendChild(scroll);
+for(const note of ['¹ Rangen binnen de geldige kandidaten uit de eerste 100 op marktkapitalisatie.',...u.limits]){const p=document.createElement('p');p.className='tiny';p.textContent=note;details.appendChild(p)}box.appendChild(details);
+}
