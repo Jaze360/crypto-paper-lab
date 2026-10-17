@@ -187,3 +187,72 @@ def filter_experiment(df,strategy,capital,fee,slip,parameters=None,progress=None
         "Dezelfde data zijn al bekeken: de laatste 20% is geen nieuw ongezien bewijs. Variantscores vormen geen samengestelde rekening en verschillen in blootstelling.",
         "Dubbele kosten kunnen eerder een risicostop activeren; vergelijk ook blokkades en tradeaantallen, niet alleen eindrendement.",
         "EMA200 en de wachttijd zijn in candles, niet in vaste uren. Alle indicatorbeslissingen gebruiken uitsluitend eerdere gesloten candles."]}
+
+
+def tuning_candidates(strategy,parameters=None):
+    result=[]
+    for p in candidates(strategy,parameters):
+        for change in ({},{"cooldown_bars":12,"trend_filter":False},{"cooldown_bars":12,"trend_filter":True}):
+            candidate=config(dict(p,**change)).model_dump()
+            if candidate not in result:result.append(candidate)
+    return result[:12]
+
+
+def auto_tune(df,strategy,capital,fee,slip,parameters=None,progress=None):
+    """Bounded train/validation selection; final prices never influence selection."""
+    n=len(df)
+    if n<1200:raise ValueError("Automatisch afstellen vereist minimaal 1.200 gesloten candles.")
+    base=config(parameters).model_dump();cut=round(n*.6);mid=round(n*.7);hold=round(n*.8)
+    trials=[]
+    for i,p in enumerate(tuning_candidates(strategy,base)):
+        if progress:progress(f"Afstellen: ontwikkelvariant {i+1}, maximaal 12.")
+        normal=run(df,strategy,capital,fee,slip,0,cut,p)["metrics"]
+        stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),0,cut,stress_parameters(p))["metrics"]
+        reasons=[]
+        if normal["trades"]<30:reasons.append("Minder dan 30 ontwikkelingstrades")
+        if normal["return_pct"]<=0:reasons.append("Ontwikkeling netto niet positief")
+        if stress["return_pct"]<=0:reasons.append("Ontwikkeling met dubbele kosten niet positief")
+        if normal["max_drawdown_pct"]>=5 or stress["max_drawdown_pct"]>=5:reasons.append("Ontwikkeldrawdown minstens 5%")
+        trials.append({"id":i+1,"parameters":p,"train":normal,"train_stress":stress,
+                       "train_score":round(normal["return_pct"]-normal["max_drawdown_pct"],6),
+                       "reasons":reasons,"validation":None,"validation_score":None})
+    shortlist=sorted([t for t in trials if not t["reasons"]],key=lambda t:(-t["train_score"],t["id"]))[:3]
+    for trial in shortlist:
+        windows=[]
+        for j,(left,right) in enumerate(((cut,mid),(mid,hold))):
+            if progress:progress(f"Validatie variant {trial['id']}, venster {j+1}/2.")
+            p=trial["parameters"]
+            m=run(df,strategy,capital,fee,slip,left,right,p)["metrics"]
+            st=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),left,right,stress_parameters(p))["metrics"]
+            windows.append({"from":df.iloc[left].time.isoformat(),"to":df.iloc[right-1].time.isoformat(),"metrics":m,"stress":st})
+            if m["trades"]<5:trial["reasons"].append(f"Validatievenster {j+1}: minder dan 5 trades")
+            if m["return_pct"]<=0 or st["return_pct"]<=0:trial["reasons"].append(f"Validatievenster {j+1}: netto of kostenstress niet positief")
+            if m["max_drawdown_pct"]>=5 or st["max_drawdown_pct"]>=5:trial["reasons"].append(f"Validatievenster {j+1}: drawdown minstens 5%")
+        trial["validation"]=windows
+        trial["validation_score"]=round(sum(w["metrics"]["return_pct"]-w["metrics"]["max_drawdown_pct"] for w in windows)/2,6)
+    eligible=[t for t in shortlist if not t["reasons"]]
+    chosen=sorted(eligible,key=lambda t:(-t["validation_score"],t["id"]))[0] if eligible else None
+    # The choice and rejection decisions are complete before running [hold,n).
+    if progress:progress("Keuze vastgezet; nu pas de laatste 20% en basisreferentie testen.")
+    reference=run(df,strategy,capital,fee,slip,hold,n,base)["metrics"]
+    reference_stress=run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),hold,n,stress_parameters(base))["metrics"]
+    selected=None
+    if chosen:
+        p=chosen["parameters"]
+        selected={"id":chosen["id"],"parameters":p,
+                  "final":run(df,strategy,capital,fee,slip,hold,n,p)["metrics"],
+                  "final_stress":run(df,strategy,capital,min(fee*2,.01),min(slip*2,.02),hold,n,stress_parameters(p))["metrics"]}
+    return {"strategy":strategy,"trials":trials,"shortlist_ids":[t["id"] for t in shortlist],"selected":selected,
+            "status":"Ontwikkeling en validatie doorstaan; beoordeel de laatste test apart" if chosen else "Geen variant doorstaat de vaste criteria",
+            "base_parameters":base,"reference":reference,"reference_stress":reference_stress,
+            "split":{"train_end":cut,"validation_mid":mid,"final_start":hold,"end":n},
+            "final_from":df.iloc[hold].time.isoformat(),"final_to":df.iloc[-1].time.isoformat(),
+            "notes":["Maximaal 12 vooraf bepaalde varianten binnen de gekozen strategie. Richting, stop/target, leentarief en harde risicolimieten blijven gelijk.",
+                     "Ontwikkeling eerste 60%: minimaal 30 trades, positief netto én bij dubbele kosten, drawdown onder 5% bij beide. Score = netto rendement minus drawdown.",
+                     "Alleen de drie beste ontwikkelvarianten gaan naar twee gescheiden validatievensters van elk 10%. Elk venster vereist minimaal 5 normale trades, positief netto én kostenstress, en beide drawdowns onder 5%.",
+                     "Keuze op gemiddelde validatiescore (netto minus drawdown); gelijke scores kiezen het laagste vaste variantnummer. Niemand voldoet betekent geen voorstel; bestaande instellingen blijven behouden.",
+                     "Laatste 20% wordt pas na vastzetten van de keuze berekend. Een slechte laatste test verandert de keuze niet achteraf. Geen automatische instellingsovername of livehandel.",
+                     "Alle varianten en afwijzingen worden bewaard. Niet-gevalideerd betekent buiten de top drie of afgewezen in ontwikkeling; het is geen gemeten validatiefout.",
+                     "Dit is begrensde parameterselectie, geen AI die broncode herschrijft. Er is geen automatische eindeloze zoeklus of achtergrondtraining.",
+                     "Dezelfde data zijn al bekeken: herhaald afstellen maakt de laatste 20% geen ongezien bewijs. Ook 5 trades per validatievenster is weinig; de drempels bewijzen geen betrouwbaarheid.",
+                     "Vensters starten met nieuw kapitaal en lege positie; scores zijn niet samengesteld en niet gecorrigeerd voor verschil in blootstelling. Kostenstress kan het handelspad wijzigen."]}

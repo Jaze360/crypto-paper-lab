@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.9.0
+- Begrensde automatische parameterselectie: maximaal twaalf varianten, ontwikkeling, twee validatievensters en laatste test.
+- Expliciete afwijzingen en kostenstress; geen instellingsovername als niemand voldoet.
+- Dashboard met instelpaneel en uitklapbare echte paper-trades.
+- Stop/target opgeslagen bij nieuwe gesloten trades.
+
 ## 0.8.0
 - Verliesanalyse met bruto/netto, kosten, stopfrequentie, duur en accountaansluiting.
 - Eerste permanente entry-stop en dagelijkse/permanente blokkades plus geblokkeerde instapsignalen zichtbaar.

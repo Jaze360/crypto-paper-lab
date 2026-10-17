@@ -24,6 +24,7 @@ class Position:
     planned_risk:float=0.
     held_bars:int=0
     entry_slippage:float=0.
+    entry_reason:str=""
 
 class PaperEngine:
     def __init__(self,candles,strategy="ema",capital=10000.,fee=.001,slip=.0005,start=0,end=None,parameters=None):
@@ -73,12 +74,12 @@ class PaperEngine:
         net=gross-p.fee_paid-fee-p.borrow_paid
         risk=p.planned_risk or (abs(p.entry-p.stop)*p.qty+p.fee_paid)
         trade={"entry_time":p.entry_time,"exit_time":stamp,"side":p.side,
-               "entry":round(p.entry,6),"exit":round(fill,6),"qty":round(p.qty,8),
+               "entry":round(p.entry,6),"exit":round(fill,6),"stop":round(p.stop,6),"target":round(p.target,6),"qty":round(p.qty,8),
                "pnl":round(net,4),"gross_pnl":round(gross,6),
                "slippage_cost":round(p.entry_slippage+abs(fill-raw)*p.qty,6),
                "gross_before_slippage":round(gross+p.entry_slippage+abs(fill-raw)*p.qty,6),"pnl_R":round(net/max(1e-9,risk),3),
                "fees":round(fee+p.fee_paid,4),"borrow_cost":round(p.borrow_paid,6),
-               "holding_bars":p.held_bars,"reason":reason,"strategy":self.strategy}
+               "holding_bars":p.held_bars,"reason":reason,"entry_reason":p.entry_reason,"strategy":self.strategy}
         self.holding_bars.append(p.held_bars)
         self.trades.append(trade)
         self.events.append({"type":("SELL LONG" if p.side=="long" else "COVER SHORT")+" (PAPER)",
@@ -109,6 +110,13 @@ class PaperEngine:
         self.position=Position(stamp,fill,qty,stop,target,fee,i-1,side,
                                qty*fill if side=="short" else 0.,0.,qty*unit_loss)
         self.position.entry_slippage=abs(fill-raw_open)*qty
+        p=self.parameters
+        rule=(f"EMA {p.ema_fast}/{p.ema_slow}-kruising" if self.strategy=="ema" else
+              f"RSI {p.rsi_period} kruist {p.rsi_entry if side=='long' else 100-p.rsi_entry}" if self.strategy=="rsi" else
+              f"Uitbraak over {p.breakout_period} vorige candles met volumefactor {p.volume_multiple}")
+        self.position.entry_reason=f"{side.upper()}: {rule}. Signaal vorige gesloten candle; uitvoering op volgende open."
+        if p.trend_filter:self.position.entry_reason+=" EMA200-trendfilter doorstaan."
+        if p.cooldown_bars:self.position.entry_reason+=f" Wachttijd {p.cooldown_bars} candles doorstaan."
         self.events.append({"type":("BUY LONG" if side=="long" else "OPEN SHORT")+" (PAPER)",
                             "time":stamp,"price":fill,"reason":"Signaal vorige gesloten candle"})
 

@@ -17,7 +17,7 @@ from strategies import STRATEGIES, StrategyConfig
 import storage
 from secrets_store import get_key, save_key
 import updater
-from research import filter_experiment,bot_arena,research, walk_forward
+from research import auto_tune,filter_experiment,bot_arena,research, walk_forward
 
 BASE = Path(__file__).parent
 VERSION = json.loads((BASE/"version.json").read_text(encoding="utf-8-sig"))["version"]
@@ -268,7 +268,7 @@ _jobs_lock=RLock()
 class ResearchJob(BaseModel):
     model_config=ConfigDict(extra="forbid")
     params:Params=Field(default_factory=Params)
-    mode:Literal["compare","walkforward","batch","arena","filters"]="walkforward"
+    mode:Literal["compare","walkforward","batch","arena","filters","tune"]="walkforward"
     coins:list[str]=Field(default_factory=list,max_length=4)
 
 def execute_job(job_id,request):
@@ -281,6 +281,10 @@ def execute_job(job_id,request):
             progress("Strategieën vergelijken.")
             payload={"meta":summary(df,p),"research":research(df,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters)}
             kind="research"
+        elif request.mode=="tune":
+            df=get_data(p,progress)
+            payload={"meta":summary(df,p),"tuning":auto_tune(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters,progress),"params":p.model_dump()}
+            kind="tune"
         elif request.mode=="filters":
             df=get_data(p,progress)
             payload={"meta":summary(df,p),"filters":filter_experiment(df,p.strategy,p.capital,p.fee_pct/100,p.slippage_pct/100,p.parameters,progress),"params":p.model_dump()}

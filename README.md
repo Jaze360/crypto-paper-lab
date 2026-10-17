@@ -1,6 +1,16 @@
-# Crypto Paper Lab — v0.8
+# Crypto Paper Lab — v0.9
 
 Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen echte orders of exchange-accountkoppeling. Longs en shorts zijn alleen fictieve posities.
+
+## Nieuw in v0.9: automatisch afstellen en dashboard
+
+**Strategie automatisch afstellen** onderzoekt maximaal twaalf vaste varianten van de gekozen strategie. Richting, stop/target en risicolimieten blijven gelijk. De eerste 60% dient voor ontwikkeling: minimaal dertig trades, positief netto en bij dubbele kosten, beide drawdowns onder 5%. Alleen de beste drie ontwikkelvarianten gaan door naar twee afzonderlijke validatievensters van elk 10%. Elk venster vereist minimaal vijf trades, positief netto en kostenstress, en beide drawdowns onder 5%. Selectie op gemiddelde validatiescore (netto minus drawdown). Niemand voldoet betekent geen voorstel. Pas daarna volgt de laatste 20%, zonder herselectie achteraf.
+
+Alle varianten, scores en afwijzingen worden bewaard. Een voorstel wordt automatisch in de laatste paper-test gebruikt; bestaande instellingen worden niet stilzwijgend overschreven. **Laad voorstel voor een papertest** zet de waarden in het formulier. Geen broncodeherschrijving, eindeloze zoeklus, achtergrondtraining of live orders. Herhaald gebruik van dezelfde dataset maakt de laatste test niet opnieuw ongezien; de drempels bewijzen geen winstgevendheid.
+
+De zichtbare videoreferenties en ontbrekende onderdelen staan in [dashboardreferentie](DASHBOARD_REFERENTIE.md). Dit is geen volledige 1-op-1-kopie van het betaalde platform.
+
+Het dashboard heeft een donkere onderzoeksruimte, compacte statistieken en een groot vermogensoverzicht. **Onderzoek instellen** opent het instelpaneel. Nieuwe backtests en replays tonen uitklapbare handelskaarten met netto resultaat, werkelijke exitreden, prijzen, kosten en opgeslagen stop/target. Ontbrekende details bij oude journals blijven leeg. De nieuwe velden veranderen de handelsregels niet.
 
 ## Nieuw in v0.8: verliesanalyse en vaste filtertest
 
