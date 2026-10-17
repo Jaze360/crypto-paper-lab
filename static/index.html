@@ -14,7 +14,7 @@
 <label>API-sleutel (optioneel, lokaal versleuteld)<input type="password" id="apiKey" autocomplete="off" placeholder="Leeg laten om huidige sleutel te behouden"></label>
 <label><input id="rememberKey" type="checkbox" style="width:auto"> Bewaar reeds ingestelde sleutel op deze Windows-account</label>
 <button id="btnSave" class="secondary">Instellingen bewaren</button><p id="savedInfo" class="tiny">Resultaten worden automatisch bewaard.</p>
-<button id="btnUpdates" class="secondary">Controleren op updates</button><button id="btnStage" class="primary" hidden>Update klaarzetten</button><p id="updateInfo" class="tiny">Private GitHub-repo: eenmalig GitHub CLI installeren en gh auth login uitvoeren.</p></aside>
+<button id="btnUpdates" class="secondary">Controleren op updates</button><button id="btnStage" class="primary" hidden>Update klaarzetten</button><p id="updateInfo" class="tiny">Openbare repo: rechtstreeks bijwerken. Bij een private repo is eenmalig GitHub CLI-aanmelding nodig.</p></aside>
 <main class="content">
 <div class="panel"><h3>Opgeslagen onderzoeken</h3><div class="controls"><select id="savedRuns" aria-label="Opgeslagen onderzoeken"></select><button id="btnLoad">Resultaat openen / replay hervatten</button><button id="btnRefreshRuns" class="secondary">Vernieuwen</button></div><p class="tiny">Ook na herstart beschikbaar. Replays hervatten op hun laatst opgeslagen candle.</p></div>
 <div class="panel" id="researchPanel" hidden><h3>Strategievergelijking</h3><p id="benchmark" class="tiny"></p><div class="scroll"><table><thead><tr><th>Strategie</th><th>Test rendement</th><th>Drawdown</th><th>Trades</th><th>Dubbele kosten</th><th>Drie tijdvensters</th></tr></thead><tbody id="researchRows"></tbody></table></div><div id="researchNotes" class="hints"></div></div><div class="statusbar"><div><span class="dot"></span><span id="status">Klaar om te testen</span></div><div id="sourceBadge">BRON: NOG GEEN DATA</div></div>
@@ -25,6 +25,7 @@
 <div class="panel"><div class="charthead"><div><h3>Historical paper replay</h3><small>Stap voor stap door de candles; niet live</small></div><span id="replayProgress" class="ghost">NIET GESTART</span></div><div class="controls"><button id="btnStep" disabled>1 candle ▶</button><button id="btn25" disabled>25 candles ▶▶</button><button id="btnExportReplay" class="secondary">Export journal (CSV)</button><button id="btnExportBacktest" class="secondary">Export backtest (CSV)</button></div><p class="tiny" id="replayState">Start eerst de historische paper replay.</p><div class="scroll"><table><thead><tr><th>Instap</th><th>Uitstap</th><th>Netto P&L</th><th>Reden</th></tr></thead><tbody id="journal"><tr><td colspan="4" class="empty">Nog geen transacties</td></tr></tbody></table></div></div>
 </main></div><footer>CRYPTO PAPER LAB · Alleen educatieve simulatie · Geen handelsadvies · Geen exchange-orderfunctionaliteit · Data source altijd controleren</footer>
 </div><script src="/static/app.js"></script></body></html>
+
 
 
 

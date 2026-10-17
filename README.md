@@ -7,7 +7,7 @@ Nederlandstalig lokaal onderzoeksdashboard. **Uitsluitend paper trading**: geen 
 - Instellingen, CSV-datasets, backtests, vergelijkingen en replays worden lokaal bewaard in SQLite.
 - Een replay hervatten na herstart gebruikt dezelfde opgeslagen candles en voortgang.
 - CoinGecko-sleutel optioneel lokaal opslaan met Windows DPAPI; de sleutel verschijnt nooit in status- of resultatenresponses.
-- Private GitHub-updater: controleren, klaarzetten, afsluiten en bij volgende start installeren. Eerst een back-up van de vervangen bronbestanden.
+- GitHub-updater voor publieke en private repositories: controleren, klaarzetten, afsluiten en bij volgende start installeren. Eerst een back-up van de vervangen bronbestanden.
 - 12 USD-markten; publieke Kraken OHLCV zonder API-sleutel naast CoinGecko.
 - Historische perioden van 7 tot 365 dagen; instelbaar Kraken-interval van 1 uur, 4 uur of 1 dag.
 - Eigen OHLCV-CSV importeren voor langere datasets.
@@ -26,7 +26,7 @@ Het startscript maakt indien nodig `.venv-313`, installeert ontbrekende pakkette
 
 ### Eenmalig overstappen vanuit v0.1
 
-De oude versie heeft nog geen updater. Download eenmaal de nieuwe ZIP via **Code > Download ZIP** op de private repository terwijl je bent ingelogd.
+De oude versie heeft nog geen updater. Download eenmaal de nieuwe ZIP via **Code > Download ZIP** op de repository.
 
 1. Exporteer gewenste v0.1-journals naar CSV: die oude resultaten staan alleen in het geheugen.
 2. Sluit het draaiende servervenster.
@@ -38,9 +38,9 @@ Een API-sleutel uit een oud PowerShell-venster is alleen beschikbaar als je vanu
 
 ## Updates vanuit het dashboard
 
-Je ChatGPT-GitHub-plugin is niet automatisch beschikbaar voor een los Windows-programma. De updater gebruikt daarom de officiële **GitHub CLI** en jouw bestaande GitHub-account, zonder token in de broncode.
+Je ChatGPT-GitHub-plugin is niet automatisch beschikbaar voor een los Windows-programma. Voor de huidige openbare repository haalt de updater rechtstreeks data op via de GitHub API, zonder login of token. Alleen bij een private repository of een bereikte publieke API-limiet gebruikt hij de officiële **GitHub CLI** en jouw bestaande GitHub-account, zonder token in de broncode.
 
-Eenmalige inrichting:
+Alleen indien private toegang nodig is, eenmalige inrichting:
 
 ```powershell
 winget install --id GitHub.cli -e
@@ -118,3 +118,4 @@ Historische candle-replay is geen autonome forward paper engine. Posities, rende
 Tests gebruiken eigen tijdelijke opslag en fictieve sleutels. Ze controleren onder meer exact hervatten van replays, opslag, CSV-validatie, verwijderen van onvoltooide candles, publieke data-cache, benchmarkkosten, updatecontrole, back-up, herstel bij onderbreking en Windows-versleuteling.
 
 **Geen bewijs van winstgevendheid of financieel advies.** De app helpt strategieën eerlijker onderzoeken, niet resultaten winstgevend laten lijken.
+

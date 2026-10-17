@@ -233,6 +233,9 @@ def test_all_strategy_signals_are_unchanged_by_future_candles(strategy):
 
 def test_updater_does_not_claim_missing_github_auth_succeeded(monkeypatch):
     monkeypatch.setattr(updater.shutil,"which",lambda name:None)
+    def unauthorized(*a,**k):
+        raise updater.HTTPError("https://api.github.com",404,"not found",{},None)
+    monkeypatch.setattr(updater,"urlopen",unauthorized)
     result=client.get("/api/updates")
     assert result.status_code==503
     assert "GitHub CLI" in result.json()["detail"]
@@ -242,4 +245,21 @@ def test_saved_key_takes_precedence_over_process_environment(monkeypatch):
     secrets_store.save_key("new-test-value")
     assert secrets_store.get_key()=="new-test-value"
 
+
+
+
+def test_public_updates_do_not_require_github_cli(monkeypatch):
+    calls=[]
+    class Response:
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def read(self,limit):return b'{"sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","commit":{"message":"public update"}}'
+    def open_public(request,**kwargs):
+        calls.append(request.full_url)
+        return Response()
+    monkeypatch.setattr(updater,"urlopen",open_public)
+    monkeypatch.setattr(updater.shutil,"which",lambda name:None)
+    info=updater.check()
+    assert info["latest"]=="a"*40
+    assert calls==["https://api.github.com/repos/Jaze360/crypto-paper-lab/commits/main"]
 

@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from datetime import datetime, timezone
 from storage import data_dir
 
@@ -18,9 +20,26 @@ REPO = "Jaze360/crypto-paper-lab"
 _LOCK = __import__("threading").Lock()
 
 def gh(*args, binary=False):
+    # Public repositories need no credentials. Private repos fall back to gh's own login.
+    endpoint = args[-1]
+    if len(args) != 2 or args[0] != "api" or not endpoint.startswith(f"repos/{REPO}/"):
+        raise ValueError("Niet toegestane GitHub-aanvraag.")
+    try:
+        request = Request("https://api.github.com/" + endpoint,
+                          headers={"User-Agent":"CryptoPaperLab/0.2", "Accept":"application/vnd.github+json"})
+        with urlopen(request, timeout=90) as response:
+            content = response.read(20_000_001)
+        if len(content) > 20_000_000:
+            raise ValueError("GitHub-download is te groot.")
+        return content if binary else content.decode("utf-8")
+    except HTTPError as exc:
+        if exc.code not in (401,403,404,429):
+            raise ValueError(f"GitHub antwoordt met HTTP {exc.code}; probeer later opnieuw.") from exc
+    except (URLError, TimeoutError) as exc:
+        raise ValueError("GitHub niet bereikbaar; controleer je internetverbinding.") from exc
     exe = shutil.which("gh")
     if not exe:
-        raise ValueError("GitHub CLI ontbreekt. Installeer via winget install --id GitHub.cli -e, open een nieuw venster en voer gh auth login uit.")
+        raise ValueError("GitHub geeft geen toegang of de publieke limiet is bereikt. Voor een private repo of hogere limiet: installeer GitHub CLI via winget install --id GitHub.cli -e en voer gh auth login uit.")
     result = subprocess.run([exe, *args], capture_output=True, timeout=120,
                             creationflags=0x08000000 if os.name == "nt" else 0)
     if result.returncode:
@@ -172,4 +191,5 @@ if __name__ == "__main__":
     except Exception as exc:
         print("Updatefout:", exc)
         sys.exit(1)
+
 
